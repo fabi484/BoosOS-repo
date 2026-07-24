@@ -17,7 +17,7 @@ else:
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.2.3"
+        self.version = "3.2.3.1"
         self.running = True
         self.save_dir = "user_saves"
         
@@ -55,7 +55,7 @@ class BoosOS:
             os.makedirs(self.user_dir)
 
     def get_apps_dir(self):
-        """Returns the user-specific apps directory inside C:\installed_apps."""
+        """Returns the user-specific apps directory inside C:\\installed_apps."""
         apps_path = os.path.join(self.user_dir, "installed_apps")
         if not os.path.exists(apps_path):
             os.makedirs(apps_path)
@@ -334,7 +334,6 @@ class BoosOS:
     def run(self):
         print(f"\n--- BoosOS v{self.version} [Drive C:\\ Mapped] ---\n")
         while self.running:
-            # Displays C:\ as the current root drive for the user
             prompt = f"{self.current_user or 'guest'}@boos:C:\\>$ "
             try:
                 ui = input(prompt).lower().split()
