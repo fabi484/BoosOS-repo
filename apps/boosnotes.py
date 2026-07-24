@@ -3,17 +3,17 @@ import sys
 import json
 from pathlib import Path
 
-# Create 'BoosNotes' folder inside the user's main home folder
-USER_HOME = Path.home()
-NOTES_DIR = USER_HOME / "BoosNotes"
+# Create 'BoosNotes' folder directly in the current working directory, 
+# ensuring it always creates the folder and saves files properly.
+NOTES_DIR = Path("BoosNotes")
 NOTES_FILE = NOTES_DIR / "notes.json"
 
 def ensure_storage_exists():
-    """Ensure the user's BoosNotes directory exists."""
+    """Ensure the BoosNotes directory exists."""
     try:
         NOTES_DIR.mkdir(parents=True, exist_ok=True)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error creating storage directory: {e}", flush=True)
 
 def load_notes():
     ensure_storage_exists()
@@ -58,9 +58,9 @@ def run_boosnotes():
     while True:
         clear_screen()
         print(f"{C_BOLD}{C_YELLOW}===================================================={C_RESET}", flush=True)
-        print(f"{C_BOLD}{C_CYAN}              BoosNotes App v1.1.1 (Patch)          {C_RESET}", flush=True)
+        print(f"{C_BOLD}{C_CYAN}              BoosNotes App v1.1.2 (Patch)          {C_RESET}", flush=True)
         print(f"{C_BOLD}{C_YELLOW}===================================================={C_RESET}", flush=True)
-        print(f"{C_WHITE}Storage Path: {NOTES_FILE}{C_RESET}\n", flush=True)
+        print(f"{C_WHITE}Storage Path: {NOTES_FILE.resolve()}{C_RESET}\n", flush=True)
 
         if not notes:
             print(f"{C_WHITE}No notes available. Create one using option '1'.{C_RESET}\n", flush=True)
@@ -85,7 +85,7 @@ def run_boosnotes():
                 content = input(f"{C_WHITE}Enter note content: {C_RESET}").strip()
                 notes.append({"title": title, "content": content})
                 save_notes(notes)
-                print(f"\n{C_GREEN}Note saved successfully in {NOTES_DIR}!{C_RESET}", flush=True)
+                print(f"\n{C_GREEN}Note saved successfully in {NOTES_DIR.resolve()}!{C_RESET}", flush=True)
                 input("Press Enter to continue...")
 
             elif choice == "2":
@@ -115,5 +115,5 @@ def run_boosnotes():
             print(f"\n{C_CYAN}Exiting BoosNotes...{C_RESET}", flush=True)
             break
 
-if __name__ == "__main__":
-    run_boosnotes()
+# Direct execution compatible with both double-click and BoosOS exec()
+run_boosnotes()
