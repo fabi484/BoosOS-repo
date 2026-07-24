@@ -20,25 +20,32 @@ def run_boosdoom():
     C_BOLD   = "\033[1m"
     C_RESET  = "\033[0m"
 
+    # Screen clear and cursor control ANSI
+    CLEAR_ALL = "\033[2J\033[H"
+    MOVE_CURSOR_TOP = "\033[H"
+
+    # Enable ANSI escape processing in Windows CMD
+    if IS_WINDOWS:
+        os.system("")
+
     # --- FLASHING LIGHTS WARNING ---
-    os.system("cls" if IS_WINDOWS else "clear")
+    sys.stdout.write(CLEAR_ALL)
     print(f"\n{C_BOLD}{C_RED}===================================================={C_RESET}")
     print(f"{C_BOLD}{C_YELLOW}              [!] PHOTOSENSITIVITY WARNING [!]{C_RESET}")
     print(f"{C_BOLD}{C_RED}===================================================={C_RESET}")
-    print(f"{C_WHITE}This game renders high-frequency ASCII raycasting graphics")
-    print(f"which may cause terminal flickering or flashing light effects.{C_RESET}\n")
+    print(f"{C_WHITE}This game renders dynamic ASCII raycasting graphics.{C_RESET}\n")
     
     choice = input(f"Press {C_GREEN}'Y'{C_RESET} to continue or any other key to exit: ").strip().lower()
     if choice != 'y':
         print(f"\n{C_CYAN}Exiting BoosDOOM...{C_RESET}")
         return
 
-    # Screen resolution in terminal characters
+    # Screen resolution
     SCREEN_WIDTH = 60
     SCREEN_HEIGHT = 20
     FOV = math.pi / 3  # 60 degrees Field of View
 
-    # World Map (1 = Wall, 0 = Empty Space)
+    # World Map
     MAP_WIDTH = 12
     MAP_HEIGHT = 12
     world_map = [
@@ -56,7 +63,7 @@ def run_boosdoom():
         ["1","1","1","1","1","1","1","1","1","1","1","1"]
     ]
 
-    # Player initial state
+    # Player state
     player_x = 2.0
     player_y = 2.0
     player_angle = 0.0
@@ -66,11 +73,7 @@ def run_boosdoom():
     editor_y = 1
     in_editor = False
 
-    # Wall texture gradient based on distance
     SHADE_CHARS = ["█", "▓", "▒", "░", ":", ".", " "]
-
-    def clear_screen():
-        os.system("cls" if IS_WINDOWS else "clear")
 
     def get_input():
         if IS_WINDOWS:
@@ -86,16 +89,19 @@ def run_boosdoom():
                 return sys.stdin.read(1).lower()
             return ""
 
-    # Set terminal mode for POSIX systems
     if not IS_WINDOWS:
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         tty.setcbreak(fd)
 
     try:
-        clear_screen()
-        print(f"{C_GREEN}Initializing ASCII DOOM Engine...{C_RESET}")
+        sys.stdout.write(CLEAR_ALL)
+        sys.stdout.write(f"{C_GREEN}Initializing Flicker-Free Engine...{C_RESET}\n")
+        sys.stdout.flush()
         time.sleep(0.5)
+
+        # Clear screen once before entering render loop
+        sys.stdout.write(CLEAR_ALL)
 
         running = True
         while running:
@@ -104,46 +110,47 @@ def run_boosdoom():
                 running = False
                 break
 
-            # Toggle Map Editor Mode
             if key == 'e':
                 in_editor = not in_editor
                 editor_x = int(player_x)
                 editor_y = int(player_y)
+                sys.stdout.write(CLEAR_ALL)
 
-            # --- MODE 1: MAP EDITOR ---
+            # --- MAP EDITOR MODE ---
             if in_editor:
                 if key == 'w' and editor_y > 0: editor_y -= 1
                 elif key == 's' and editor_y < MAP_HEIGHT - 1: editor_y += 1
                 elif key == 'a' and editor_x > 0: editor_x -= 1
                 elif key == 'd' and editor_x < MAP_WIDTH - 1: editor_x += 1
-                elif key == ' ':  # Toggle wall with SPACE
-                    # Do not block outer border walls
+                elif key == ' ':
                     if 0 < editor_x < MAP_WIDTH - 1 and 0 < editor_y < MAP_HEIGHT - 1:
                         world_map[editor_y][editor_x] = '0' if world_map[editor_y][editor_x] == '1' else '1'
 
-                # Render Editor Overlay
-                clear_screen()
-                print(f"{C_YELLOW}=== MAP EDITOR MODE ==={C_RESET}")
-                print(f"Move: {C_WHITE}W/A/S/D{C_RESET} | Toggle Wall: {C_WHITE}SPACE{C_RESET} | Exit Editor: {C_WHITE}E{C_RESET}\n")
+                output = [MOVE_CURSOR_TOP]
+                output.append(f"{C_YELLOW}=== MAP EDITOR MODE ==={C_RESET}\033[K")
+                output.append(f"Move: {C_WHITE}W/A/S/D{C_RESET} | Toggle Wall: {C_WHITE}SPACE{C_RESET} | Exit Editor: {C_WHITE}E{C_RESET}\033[K\n")
 
                 for my in range(MAP_HEIGHT):
                     line = ""
                     for mx in range(MAP_WIDTH):
                         if my == editor_y and mx == editor_x:
-                            line += f"{C_YELLOW}[X]{C_RESET}"  # Cursor
+                            line += f"{C_YELLOW}[X]{C_RESET}"
                         elif int(player_y) == my and int(player_x) == mx:
-                            line += f"{C_GREEN} P {C_RESET}"    # Player
+                            line += f"{C_GREEN} P {C_RESET}"
                         elif world_map[my][mx] == '1':
                             line += "███"
                         else:
                             line += " . "
-                    print(line)
+                    output.append(line + "\033[K")
                 
-                print(f"\n{C_CYAN}Current Block: {'Wall (1)' if world_map[editor_y][editor_x] == '1' else 'Empty (0)'}{C_RESET}")
+                output.append(f"\n{C_CYAN}Current Block: {'Wall (1)' if world_map[editor_y][editor_x] == '1' else 'Empty (0)'}{C_RESET}\033[K")
+                
+                sys.stdout.write("\n".join(output) + "\n")
+                sys.stdout.flush()
                 time.sleep(0.05)
                 continue
 
-            # --- MODE 2: 3D RAYCASTER GAMEPLAY ---
+            # --- 3D GAMEPLAY MODE ---
             move_speed = 0.25
             rot_speed = 0.15
 
@@ -164,7 +171,6 @@ def run_boosdoom():
 
             player_angle %= (2 * math.pi)
 
-            # Raycasting Engine
             buffer = [[" " for _ in range(SCREEN_WIDTH)] for _ in range(SCREEN_HEIGHT)]
 
             for x in range(SCREEN_WIDTH):
@@ -208,7 +214,7 @@ def run_boosdoom():
                     else:
                         buffer[y][x] = "."
 
-            # Minimap overlay
+            # Minimap
             for my in range(MAP_HEIGHT):
                 for mx in range(MAP_WIDTH):
                     if int(player_y) == my and int(player_x) == mx:
@@ -223,14 +229,13 @@ def run_boosdoom():
                 for gchar_idx, gchar in enumerate(gline):
                     buffer[SCREEN_HEIGHT - 2 + gi][start_x + gchar_idx] = gchar
 
-            # Draw Frame
-            output = []
-            output.append(f"{C_RED}=== BOOS-DOOM ASCII v1.1 ==={C_RESET}")
+            # Construct buffer and overwrite top-down without system clear
+            output = [MOVE_CURSOR_TOP]
+            output.append(f"{C_RED}=== BOOS-DOOM ASCII v1.2 ==={C_RESET}\033[K")
             for row in buffer:
-                output.append("".join(row))
-            output.append(f"{C_CYAN}Controls: W/S/A/D (Move/Turn), E (Map Editor), Q (Quit){C_RESET}")
+                output.append("".join(row) + "\033[K")
+            output.append(f"{C_CYAN}Controls: W/S/A/D (Move/Turn), E (Map Editor), Q (Quit){C_RESET}\033[K")
             
-            clear_screen()
             sys.stdout.write("\n".join(output) + "\n")
             sys.stdout.flush()
 
