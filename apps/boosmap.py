@@ -50,7 +50,7 @@ def run_boosmap():
         print(line)
 
     print(f"\n{C_BOLD}{C_WHITE}Legend:{C_RESET} {C_GREEN}LAND / Continents{C_RESET} | {C_BLUE}OCEAN / Water{C_RESET} | {C_WHITE}ICE / Poles{C_RESET}")
-    print(f"\nType a country name for details (e.g., {C_YELLOW}romania{C_YELLOW}, {C_YELLOW}usa{C_YELLOW}, {C_YELLOW}japan{C_RESET}) or type '{C_YELLOW}exit{C_RESET}':")
+    print(f"\nType a country name for details (e.g., {C_YELLOW}romania{C_RESET}, {C_YELLOW}usa{C_RESET}, {C_YELLOW}japan{C_RESET}) or type '{C_YELLOW}exit{C_RESET}':")
 
     while True:
         try:
