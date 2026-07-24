@@ -17,7 +17,7 @@ else:
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.2.4"
+        self.version = "3.2.5"
         self.running = True
         self.save_dir = "user_saves"
         
@@ -43,7 +43,6 @@ class BoosOS:
         os.system("cls" if IS_WINDOWS else "clear")
 
     def get_suggestion(self, cmd):
-        # Combining system commands with installed apps for spell-checking
         apps_dir = self.get_apps_dir()
         installed_apps = [f[:-3] for f in os.listdir(apps_dir) if f.endswith(".py")] if os.path.exists(apps_dir) else []
         all_valid = self.commands + installed_apps
@@ -75,7 +74,7 @@ class BoosOS:
         print("\n--- BoosOS Help ---")
         print(f"System Commands : {', '.join(sorted(system_cmds))}")
         if installed_apps:
-            print(f"Installed Apps  : {', '.join(sorted(installed_apps))} (Run with: run <app_name> or directly '<app_name>')")
+            print(f"Installed Apps  : {', '.join(sorted(installed_apps))} (Run with: '<app_name>' or 'run <app_name>')")
         else:
             print("Installed Apps  : None (Use 'pkg install <app>' to add apps)")
         print()
@@ -135,42 +134,82 @@ class BoosOS:
         return json.load(open(path, "r")) if os.path.exists(path) else {}
 
     # --- ONLINE PACKAGE MANAGER (`pkg`) ---
+    def update_single_app(self, app_name):
+        apps_dir = self.get_apps_dir()
+        app_path = os.path.join(apps_dir, f"{app_name}.py")
+        if not os.path.exists(app_path):
+            print(f"[PKG Error] App '{app_name}' is not installed on C:\\. Use 'pkg install {app_name}'.")
+            return False
+
+        print(f"[PKG] Updating app '{app_name}' from repository...")
+        try:
+            app_url = f"{self.repo_url}/apps/{app_name}.py?cb={int(time.time())}"
+            req = urllib.request.Request(
+                app_url, 
+                headers={'Cache-Control': 'no-cache', 'Pragma': 'no-cache'}
+            )
+            with urllib.request.urlopen(req, timeout=5) as response:
+                app_code = response.read().decode('utf-8')
+                with open(app_path, "w", encoding="utf-8") as f:
+                    f.write(app_code)
+                print(f"[PKG] App '{app_name}' updated successfully!")
+                return True
+        except Exception as e:
+            print(f"[PKG Error] Failed to update '{app_name}': {e}")
+            return False
+
     def pkg_manager(self, args):
         if not args:
-            print("Usage: pkg [install <app_name> | update | list | run <app_name>]")
+            print("Usage: pkg [install <app> | update [os|<app>|all] | list | run <app>]")
             return
 
         action = args[0].lower()
 
         if action == "update":
-            print("[PKG] Checking for BoosOS updates...")
-            try:
-                os_url = f"{self.repo_url}/boos.py?cb={int(time.time())}"
-                req = urllib.request.Request(
-                    os_url, 
-                    headers={'Cache-Control': 'no-cache', 'Pragma': 'no-cache'}
-                )
-                with urllib.request.urlopen(req, timeout=5) as response:
-                    new_code = response.read().decode('utf-8')
-                    if "class BoosOS" in new_code:
-                        remote_version = None
-                        for line in new_code.splitlines():
-                            if "self.version =" in line:
-                                remote_version = line.split("=")[1].strip().strip('"').strip("'")
-                                break
-                        
-                        if remote_version and remote_version == self.version:
-                            print(f"[PKG] You are already running the latest version of BoosOS (v{self.version})!")
-                            return
+            target = args[1].lower() if len(args) > 1 else "os"
 
-                        current_file = os.path.realpath(__file__)
-                        with open(current_file, "w", encoding="utf-8") as f:
-                            f.write(new_code)
-                        print(f"[PKG] OS successfully updated from v{self.version} to v{remote_version or 'newer'}! Restart BoosOS to apply.")
-                    else:
-                        print("[PKG Error] Downloaded invalid script. Update aborted.")
-            except Exception as e:
-                print(f"[PKG Error] Failed to update OS: {e}")
+            if target in ["os", "system"]:
+                print("[PKG] Checking for BoosOS kernel updates...")
+                try:
+                    os_url = f"{self.repo_url}/boos.py?cb={int(time.time())}"
+                    req = urllib.request.Request(
+                        os_url, 
+                        headers={'Cache-Control': 'no-cache', 'Pragma': 'no-cache'}
+                    )
+                    with urllib.request.urlopen(req, timeout=5) as response:
+                        new_code = response.read().decode('utf-8')
+                        if "class BoosOS" in new_code:
+                            remote_version = None
+                            for line in new_code.splitlines():
+                                if "self.version =" in line:
+                                    remote_version = line.split("=")[1].strip().strip('"').strip("'")
+                                    break
+                            
+                            if remote_version and remote_version == self.version:
+                                print(f"[PKG] You are already running the latest version of BoosOS (v{self.version})!")
+                                return
+
+                            current_file = os.path.realpath(__file__)
+                            with open(current_file, "w", encoding="utf-8") as f:
+                                f.write(new_code)
+                            print(f"[PKG] OS successfully updated from v{self.version} to v{remote_version or 'newer'}! Restart BoosOS to apply.")
+                        else:
+                            print("[PKG Error] Downloaded invalid script. Update aborted.")
+                except Exception as e:
+                    print(f"[PKG Error] Failed to update OS: {e}")
+
+            elif target == "all":
+                apps_dir = self.get_apps_dir()
+                apps = [f[:-3] for f in os.listdir(apps_dir) if f.endswith(".py")] if os.path.exists(apps_dir) else []
+                if not apps:
+                    print("[PKG] No installed apps found to update.")
+                    return
+                print(f"[PKG] Updating all {len(apps)} installed app(s)...")
+                for app in apps:
+                    self.update_single_app(app)
+
+            else:
+                self.update_single_app(target)
 
         elif action == "install":
             if len(args) < 2:
