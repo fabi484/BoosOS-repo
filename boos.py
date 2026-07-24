@@ -17,7 +17,7 @@ else:
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.2.3.1"
+        self.version = "3.2.4"
         self.running = True
         self.save_dir = "user_saves"
         
@@ -43,13 +43,16 @@ class BoosOS:
         os.system("cls" if IS_WINDOWS else "clear")
 
     def get_suggestion(self, cmd):
-        matches = difflib.get_close_matches(cmd, self.commands, n=1, cutoff=0.5)
+        # Combining system commands with installed apps for spell-checking
+        apps_dir = self.get_apps_dir()
+        installed_apps = [f[:-3] for f in os.listdir(apps_dir) if f.endswith(".py")] if os.path.exists(apps_dir) else []
+        all_valid = self.commands + installed_apps
+        matches = difflib.get_close_matches(cmd, all_valid, n=1, cutoff=0.5)
         return matches[0] if matches else None
 
     # --- USER FOLDER MANAGEMENT (C: DRIVE MAPPING) ---
     def set_active_user(self, username):
         self.current_user = username
-        # Saves explicitly under user_saves/<username> which acts as "C:\" for that user
         self.user_dir = os.path.abspath(os.path.join(self.save_dir, username))
         if not os.path.exists(self.user_dir):
             os.makedirs(self.user_dir)
@@ -60,6 +63,22 @@ class BoosOS:
         if not os.path.exists(apps_path):
             os.makedirs(apps_path)
         return apps_path
+
+    # --- HELP COMMAND WITH INSTALLED APPS ---
+    def show_help(self):
+        system_cmds = list(self.commands)
+        apps_dir = self.get_apps_dir()
+        installed_apps = []
+        if os.path.exists(apps_dir):
+            installed_apps = [f[:-3] for f in os.listdir(apps_dir) if f.endswith(".py")]
+
+        print("\n--- BoosOS Help ---")
+        print(f"System Commands : {', '.join(sorted(system_cmds))}")
+        if installed_apps:
+            print(f"Installed Apps  : {', '.join(sorted(installed_apps))} (Run with: run <app_name> or directly '<app_name>')")
+        else:
+            print("Installed Apps  : None (Use 'pkg install <app>' to add apps)")
+        print()
 
     # --- AUTHENTICATION ---
     def load_users(self):
@@ -127,7 +146,11 @@ class BoosOS:
             print("[PKG] Checking for BoosOS updates...")
             try:
                 os_url = f"{self.repo_url}/boos.py?cb={int(time.time())}"
-                with urllib.request.urlopen(os_url, timeout=5) as response:
+                req = urllib.request.Request(
+                    os_url, 
+                    headers={'Cache-Control': 'no-cache', 'Pragma': 'no-cache'}
+                )
+                with urllib.request.urlopen(req, timeout=5) as response:
                     new_code = response.read().decode('utf-8')
                     if "class BoosOS" in new_code:
                         remote_version = None
@@ -159,7 +182,11 @@ class BoosOS:
             print(f"[PKG] Fetching '{app_name}' for drive C:\\ ({user_label})...")
             try:
                 app_url = f"{self.repo_url}/apps/{app_name}.py?cb={int(time.time())}"
-                with urllib.request.urlopen(app_url, timeout=5) as response:
+                req = urllib.request.Request(
+                    app_url, 
+                    headers={'Cache-Control': 'no-cache', 'Pragma': 'no-cache'}
+                )
+                with urllib.request.urlopen(req, timeout=5) as response:
                     app_code = response.read().decode('utf-8')
                     app_path = os.path.join(apps_dir, f"{app_name}.py")
                     with open(app_path, "w", encoding="utf-8") as f:
@@ -340,13 +367,17 @@ class BoosOS:
                 if not ui: continue
                 c = ui[0]
                 
+                # Check if user tries to execute an installed app directly
+                apps_dir = self.get_apps_dir()
+                app_path = os.path.join(apps_dir, f"{c}.py")
+                
                 actions = {
                     "sysinfo": self.show_sysinfo,
                     "ping": lambda: self.ping_host(ui[1] if len(ui)>1 else '8.8.8.8'),
                     "calc": self.advanced_calc,
                     "clear": self.clear_screen,
                     "exit": lambda: setattr(self, 'running', False),
-                    "help": lambda: print(f"Available: {', '.join(self.commands)}"),
+                    "help": self.show_help,
                     "snake": self.snake_game,
                     "tictactoe": self.tictactoe,
                     "top": self.task_monitor,
@@ -356,8 +387,11 @@ class BoosOS:
                     "pkg": lambda: self.pkg_manager(ui[1:]),
                     "run": lambda: self.run_app(ui[1]) if len(ui) > 1 else print("Usage: run <app_name>")
                 }
+                
                 if c in actions: 
                     actions[c]()
+                elif os.path.exists(app_path):
+                    self.run_app(c)
                 else:
                     sug = self.get_suggestion(c)
                     print(f"Command '{c}' not found. {f'Did you mean {sug}?' if sug else ''}\n")
