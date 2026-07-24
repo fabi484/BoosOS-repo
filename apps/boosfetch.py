@@ -66,7 +66,7 @@ def run_boosfetch():
     info = [
         f"{C_BOLD}{C_GREEN}{user}{C_WHITE}@{C_GREEN}BoosOS{C_RESET}",
         f"{C_CYAN}----------------------------------{C_RESET}",
-        f"{C_BOLD}{C_YELLOW}OS         :{C_RESET} BoosOS v3.2.4 (Virtual Terminal)",
+        f"{C_BOLD}{C_YELLOW}Version    :{C_RESET} boosfetch v1.1",
         f"{C_BOLD}{C_YELLOW}Host OS    :{C_RESET} {platform.system()} {platform.release()} ({platform.machine()})",
         f"{C_BOLD}{C_YELLOW}Python     :{C_RESET} {platform.python_version()} ({platform.python_implementation()})",
         f"{C_BOLD}{C_YELLOW}Active User:{C_RESET} {user}",
