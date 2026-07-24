@@ -96,7 +96,7 @@ def run_boosdoom():
 
     try:
         sys.stdout.write(CLEAR_ALL)
-        sys.stdout.write(f"{C_GREEN}Initializing Flicker-Free Engine...{C_RESET}\n")
+        sys.stdout.write(f"{C_GREEN}Initializing Flicker-Free Engine v1.2...{C_RESET}\n")
         sys.stdout.flush()
         time.sleep(0.5)
 
@@ -127,7 +127,7 @@ def run_boosdoom():
                         world_map[editor_y][editor_x] = '0' if world_map[editor_y][editor_x] == '1' else '1'
 
                 output = [MOVE_CURSOR_TOP]
-                output.append(f"{C_YELLOW}=== MAP EDITOR MODE ==={C_RESET}\033[K")
+                output.append(f"{C_YELLOW}=== MAP EDITOR MODE (v1.2) ==={C_RESET}\033[K")
                 output.append(f"Move: {C_WHITE}W/A/S/D{C_RESET} | Toggle Wall: {C_WHITE}SPACE{C_RESET} | Exit Editor: {C_WHITE}E{C_RESET}\033[K\n")
 
                 for my in range(MAP_HEIGHT):
