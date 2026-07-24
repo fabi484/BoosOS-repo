@@ -127,7 +127,7 @@ class BoosOS:
                 with urllib.request.urlopen(os_url, timeout=5) as response:
                     new_code = response.read().decode('utf-8')
                     if "class BoosOS" in new_code:
-                        # Extract the remote version string
+                        # Extract remote version
                         remote_version = None
                         for line in new_code.splitlines():
                             if "self.version =" in line:
