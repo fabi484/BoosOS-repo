@@ -1,3 +1,3 @@
 # BoosOS-repo
 
-Basicly an os download the .py file run it with python 3 idk
+For detailed guides, app descriptions, and development basics, check out the [BoosOS Wiki](https://github.com/fabi484/BoosOS-repo/wiki)
