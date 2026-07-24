@@ -32,14 +32,14 @@ def run_boosmap():
     ]
 
     capitals = {
-        "romania": ("București", "44.4° N, 26.1° E", "Europa"),
-        "usa": ("Washington D.C.", "38.9° N, 77.0° W", "America de Nord"),
-        "germany": ("Berlin", "52.5° N, 13.4° E", "Europa"),
+        "romania": ("Bucharest", "44.4° N, 26.1° E", "Europe"),
+        "usa": ("Washington D.C.", "38.9° N, 77.0° W", "North America"),
+        "germany": ("Berlin", "52.5° N, 13.4° E", "Europe"),
         "japan": ("Tokyo", "35.6° N, 139.6° E", "Asia"),
-        "uk": ("Londra", "51.5° N, 0.1° W", "Europa"),
-        "france": ("Paris", "48.8° N, 2.3° E", "Europa"),
+        "uk": ("London", "51.5° N, 0.1° W", "Europe"),
+        "france": ("Paris", "48.8° N, 2.3° E", "Europe"),
         "australia": ("Canberra", "35.2° S, 149.1° E", "Oceania"),
-        "brazil": ("Brasília", "15.8° S, 47.9° W", "America de Sud")
+        "brazil": ("Brasília", "15.8° S, 47.9° W", "South America")
     }
 
     print("\n" + "=" * 74)
@@ -49,8 +49,8 @@ def run_boosmap():
     for line in world_map:
         print(line)
 
-    print(f"\n{C_BOLD}{C_WHITE}Legendă:{C_RESET} {C_GREEN}USCAT / Continente{C_RESET} | {C_BLUE}OCEAN / Ape{C_RESET} | {C_WHITE}GHEAȚĂ / Poli{C_RESET}")
-    print(f"\nTipărește o țară pentru detalii (ex: {C_YELLOW}romania{C_RESET}, {C_YELLOW}usa{C_RESET}, {C_YELLOW}japan{C_RESET}) sau tastați '{C_YELLOW}exit{C_RESET}':")
+    print(f"\n{C_BOLD}{C_WHITE}Legend:{C_RESET} {C_GREEN}LAND / Continents{C_RESET} | {C_BLUE}OCEAN / Water{C_RESET} | {C_WHITE}ICE / Poles{C_RESET}")
+    print(f"\nType a country name for details (e.g., {C_YELLOW}romania{C_YELLOW}, {C_YELLOW}usa{C_YELLOW}, {C_YELLOW}japan{C_RESET}) or type '{C_YELLOW}exit{C_RESET}':")
 
     while True:
         try:
@@ -62,9 +62,9 @@ def run_boosmap():
             
             if cmd in capitals:
                 city, coords, region = capitals[cmd]
-                print(f" -> {C_BOLD}{C_GREEN}{cmd.upper()}{C_RESET} | Capitală: {C_YELLOW}{city}{C_RESET} | Coordonate: {C_WHITE}{coords}{C_RESET} | Regiune: {region}")
+                print(f" -> {C_BOLD}{C_GREEN}{cmd.upper()}{C_RESET} | Capital: {C_YELLOW}{city}{C_RESET} | Coordinates: {C_WHITE}{coords}{C_RESET} | Region: {region}")
             else:
-                print(f" -> {C_YELLOW}Țara '{cmd}' nu este în baza de date.{C_RESET} Țări disponibile: {', '.join(capitals.keys())}")
+                print(f" -> {C_YELLOW}Country '{cmd}' not found in database.{C_RESET} Available countries: {', '.join(capitals.keys())}")
         except (KeyboardInterrupt, EOFError):
             break
 
