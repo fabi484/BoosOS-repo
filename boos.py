@@ -17,21 +17,23 @@ else:
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.2.2"
+        self.version = "3.2.3"
         self.running = True
-        self.current_dir = os.getcwd()
-        self.users_file = "users.json"
         self.save_dir = "user_saves"
         
         # Linked directly to your GitHub repository raw endpoint
         self.repo_url = "https://raw.githubusercontent.com/fabi484/BoosOS-repo/main"
         
+        self.users_file = "users.json"
         self.current_user = None
         self.user_dir = None
         
         if not os.path.exists(self.save_dir): 
             os.makedirs(self.save_dir)
-        
+            
+        # Set default guest profile
+        self.set_active_user("guest")
+
         self.commands = [
             "sysinfo", "ping", "calc", "clear", "exit", "help", "snake", 
             "tictactoe", "top", "login", "register", "whoami", "pkg", "run"
@@ -44,18 +46,17 @@ class BoosOS:
         matches = difflib.get_close_matches(cmd, self.commands, n=1, cutoff=0.5)
         return matches[0] if matches else None
 
-    # --- USER FOLDER MANAGEMENT ---
+    # --- USER FOLDER MANAGEMENT (C: DRIVE MAPPING) ---
     def set_active_user(self, username):
         self.current_user = username
-        self.user_dir = os.path.join(self.save_dir, username)
+        # Saves explicitly under user_saves/<username> which acts as "C:\" for that user
+        self.user_dir = os.path.abspath(os.path.join(self.save_dir, username))
         if not os.path.exists(self.user_dir):
             os.makedirs(self.user_dir)
-            print(f"[System] Created personal directory for '{username}' at '{self.user_dir}'.")
 
     def get_apps_dir(self):
-        """Returns the user-specific apps directory."""
-        user = self.current_user if self.current_user else "guest"
-        apps_path = os.path.join(self.save_dir, user, "installed_apps")
+        """Returns the user-specific apps directory inside C:\installed_apps."""
+        apps_path = os.path.join(self.user_dir, "installed_apps")
         if not os.path.exists(apps_path):
             os.makedirs(apps_path)
         return apps_path
@@ -82,7 +83,7 @@ class BoosOS:
             json.dump(users, f, indent=4)
 
         self.set_active_user(u)
-        print(f"[System] User '{u}' successfully registered.")
+        print(f"[System] User '{u}' registered. Personal drive mapped to C:\\ (user_saves/{u}).")
 
     def login(self):
         users = self.load_users()
@@ -91,17 +92,14 @@ class BoosOS:
         
         if users.get(u) == p:
             self.set_active_user(u)
-            print(f"Welcome back, {u}!")
+            print(f"Welcome back, {u}! Active drive: C:\\")
         else:
             print("[Auth Error] Invalid username or password.")
 
     # --- DATA PERSISTENCE ---
     def save_data(self, key, value):
-        if not self.current_user:
-            return
-        
         if not self.user_dir or not os.path.exists(self.user_dir):
-            self.set_active_user(self.current_user)
+            self.set_active_user(self.current_user or "guest")
             
         path = os.path.join(self.user_dir, "data.json")
         data = self.load_user_data()
@@ -109,10 +107,10 @@ class BoosOS:
         
         with open(path, "w") as f:
             json.dump(data, f, indent=4)
-        print(f"[System] Saved persistent data for {self.current_user}.")
+        print(f"[System] Saved persistent data to C:\\data.json for {self.current_user}.")
 
     def load_user_data(self):
-        if not self.current_user or not self.user_dir:
+        if not self.user_dir or not os.path.exists(self.user_dir):
             return {}
         path = os.path.join(self.user_dir, "data.json")
         return json.load(open(path, "r")) if os.path.exists(path) else {}
@@ -132,14 +130,12 @@ class BoosOS:
                 with urllib.request.urlopen(os_url, timeout=5) as response:
                     new_code = response.read().decode('utf-8')
                     if "class BoosOS" in new_code:
-                        # Extract the remote version string
                         remote_version = None
                         for line in new_code.splitlines():
                             if "self.version =" in line:
                                 remote_version = line.split("=")[1].strip().strip('"').strip("'")
                                 break
                         
-                        # Check if system is already up to date
                         if remote_version and remote_version == self.version:
                             print(f"[PKG] You are already running the latest version of BoosOS (v{self.version})!")
                             return
@@ -160,7 +156,7 @@ class BoosOS:
             app_name = args[1].lower()
             apps_dir = self.get_apps_dir()
             user_label = self.current_user or "guest"
-            print(f"[PKG] Fetching '{app_name}' from github.com/fabi484/BoosOS-repo for user '{user_label}'...")
+            print(f"[PKG] Fetching '{app_name}' for drive C:\\ ({user_label})...")
             try:
                 app_url = f"{self.repo_url}/apps/{app_name}.py?cb={int(time.time())}"
                 with urllib.request.urlopen(app_url, timeout=5) as response:
@@ -168,20 +164,20 @@ class BoosOS:
                     app_path = os.path.join(apps_dir, f"{app_name}.py")
                     with open(app_path, "w", encoding="utf-8") as f:
                         f.write(app_code)
-                    print(f"[PKG] App '{app_name}' successfully installed to profile '{user_label}'!")
+                    print(f"[PKG] App '{app_name}' successfully installed to C:\\installed_apps\\{app_name}.py!")
             except Exception as e:
                 print(f"[PKG Error] Failed to install '{app_name}': {e}")
 
         elif action == "list":
             apps_dir = self.get_apps_dir()
             user_label = self.current_user or "guest"
-            print(f"\n--- Installed Applications ({user_label}) ---")
+            print(f"\n--- Installed Applications [C:\\ ({user_label})] ---")
             apps = [f[:-3] for f in os.listdir(apps_dir) if f.endswith(".py")] if os.path.exists(apps_dir) else []
             if apps:
                 for app in apps: 
                     print(f"  * {app}")
             else:
-                print("No external apps installed for this profile.")
+                print("No external apps installed on C:\\ drive.")
             print()
 
         elif action == "run":
@@ -198,10 +194,10 @@ class BoosOS:
         apps_dir = self.get_apps_dir()
         app_path = os.path.join(apps_dir, f"{app_name}.py")
         if not os.path.exists(app_path):
-            print(f"[Error] App '{app_name}' is not installed for this user profile. Run 'pkg install {app_name}'.")
+            print(f"[Error] App '{app_name}' is not found in C:\\installed_apps\\. Run 'pkg install {app_name}'.")
             return
         
-        print(f"[System] Executing {app_name}...\n")
+        print(f"[System] Executing C:\\installed_apps\\{app_name}.py...\n")
         try:
             with open(app_path, "r", encoding="utf-8") as f:
                 app_code = f.read()
@@ -240,7 +236,7 @@ class BoosOS:
         else:
             bat_str = "N/A (psutil not installed)"
             
-        print(f"\n--- BoosOS {self.version} | {time.strftime('%H:%M:%S')} | Batt: {bat_str} ---\n")
+        print(f"\n--- BoosOS {self.version} | Drive: C:\\ | {time.strftime('%H:%M:%S')} | Batt: {bat_str} ---\n")
 
     def task_monitor(self):
         if not HAS_PSUTIL:
@@ -336,9 +332,10 @@ class BoosOS:
 
     # --- KERNEL CORE LOOP ---
     def run(self):
-        print(f"\n--- BoosOS v{self.version} [Cross-Platform] ---\n")
+        print(f"\n--- BoosOS v{self.version} [Drive C:\\ Mapped] ---\n")
         while self.running:
-            prompt = f"{self.current_user or 'guest'}@boos:{os.path.basename(self.current_dir)}~$ "
+            # Displays C:\ as the current root drive for the user
+            prompt = f"{self.current_user or 'guest'}@boos:C:\\>$ "
             try:
                 ui = input(prompt).lower().split()
                 if not ui: continue
@@ -356,7 +353,7 @@ class BoosOS:
                     "top": self.task_monitor,
                     "login": self.login,
                     "register": self.register,
-                    "whoami": lambda: print(self.current_user or "Guest"),
+                    "whoami": lambda: print(f"{self.current_user or 'guest'} (Drive: C:\\)"),
                     "pkg": lambda: self.pkg_manager(ui[1:]),
                     "run": lambda: self.run_app(ui[1]) if len(ui) > 1 else print("Usage: run <app_name>")
                 }
