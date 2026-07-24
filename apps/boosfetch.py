@@ -16,6 +16,19 @@ def run_boosfetch():
     user = current_user if 'current_user' in globals() and current_user else "guest"
     u_dir = user_dir if 'user_dir' in globals() and user_dir else "user_saves/guest"
     
+    # Detect dynamically the active BoosOS version from the running kernel/class instance
+    os_version = "Unknown"
+    # Search frame stack for active BoosOS instance
+    try:
+        frame = sys._getframe()
+        while frame:
+            if 'self' in frame.f_locals and hasattr(frame.f_locals['self'], 'version'):
+                os_version = f"v{frame.f_locals['self'].version}"
+                break
+            frame = frame.f_back
+    except Exception:
+        pass
+
     # Calculate installed apps
     apps_path = os.path.join(u_dir, "installed_apps")
     app_count = 0
@@ -66,7 +79,7 @@ def run_boosfetch():
     info = [
         f"{C_BOLD}{C_GREEN}{user}{C_WHITE}@{C_GREEN}BoosOS{C_RESET}",
         f"{C_CYAN}----------------------------------{C_RESET}",
-        f"{C_BOLD}{C_YELLOW}Version    :{C_RESET} boosfetch v1.1",
+        f"{C_BOLD}{C_YELLOW}OS         :{C_RESET} BoosOS {os_version}",
         f"{C_BOLD}{C_YELLOW}Host OS    :{C_RESET} {platform.system()} {platform.release()} ({platform.machine()})",
         f"{C_BOLD}{C_YELLOW}Python     :{C_RESET} {platform.python_version()} ({platform.python_implementation()})",
         f"{C_BOLD}{C_YELLOW}Active User:{C_RESET} {user}",
