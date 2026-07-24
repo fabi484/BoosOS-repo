@@ -11,6 +11,28 @@ else:
     import select, tty, termios
 
 def run_boosdoom():
+    # ANSI Colors
+    C_GREEN  = "\033[92m"
+    C_RED    = "\033[91m"
+    C_YELLOW = "\033[93m"
+    C_CYAN   = "\033[96m"
+    C_WHITE  = "\033[97m"
+    C_BOLD   = "\033[1m"
+    C_RESET  = "\033[0m"
+
+    # --- FLASHING LIGHTS WARNING ---
+    os.system("cls" if IS_WINDOWS else "clear")
+    print(f"\n{C_BOLD}{C_RED}===================================================={C_RESET}")
+    print(f"{C_BOLD}{C_YELLOW}              [!] PHOTOSENSITIVITY WARNING [!]{C_RESET}")
+    print(f"{C_BOLD}{C_RED}===================================================={C_RESET}")
+    print(f"{C_WHITE}This game renders high-frequency ASCII raycasting graphics")
+    print(f"which may cause terminal flickering or flashing light effects.{C_RESET}\n")
+    
+    choice = input(f"Press {C_GREEN}'Y'{C_RESET} to continue or any other key to exit: ").strip().lower()
+    if choice != 'y':
+        print(f"\n{C_CYAN}Exiting BoosDOOM...{C_RESET}")
+        return
+
     # Screen resolution in terminal characters
     SCREEN_WIDTH = 60
     SCREEN_HEIGHT = 20
@@ -19,19 +41,19 @@ def run_boosdoom():
     # World Map (1 = Wall, 0 = Empty Space)
     MAP_WIDTH = 12
     MAP_HEIGHT = 12
-    WORLD_MAP = [
-        "111111111111",
-        "100000000001",
-        "101111011101",
-        "101000000101",
-        "101011110101",
-        "100010010001",
-        "101010010101",
-        "101011010101",
-        "101000000101",
-        "101111111101",
-        "100000000001",
-        "111111111111"
+    world_map = [
+        ["1","1","1","1","1","1","1","1","1","1","1","1"],
+        ["1","0","0","0","0","0","0","0","0","0","0","1"],
+        ["1","0","1","1","1","1","0","1","1","1","0","1"],
+        ["1","0","1","0","0","0","0","0","0","1","0","1"],
+        ["1","0","1","0","1","1","1","1","0","1","0","1"],
+        ["1","0","0","0","1","0","0","1","0","0","0","1"],
+        ["1","0","1","0","1","0","0","1","0","1","0","1"],
+        ["1","0","1","0","1","1","0","1","0","1","0","1"],
+        ["1","0","1","0","0","0","0","0","0","1","0","1"],
+        ["1","0","1","1","1","1","1","1","1","1","0","1"],
+        ["1","0","0","0","0","0","0","0","0","0","0","1"],
+        ["1","1","1","1","1","1","1","1","1","1","1","1"]
     ]
 
     # Player initial state
@@ -39,11 +61,10 @@ def run_boosdoom():
     player_y = 2.0
     player_angle = 0.0
 
-    # ANSI Colors
-    C_GREEN = "\033[92m"
-    C_RED   = "\033[91m"
-    C_CYAN  = "\033[96m"
-    C_RESET = "\033[0m"
+    # Editor Cursor state
+    editor_x = 1
+    editor_y = 1
+    in_editor = False
 
     # Wall texture gradient based on distance
     SHADE_CHARS = ["█", "▓", "▒", "░", ":", ".", " "]
@@ -78,47 +99,82 @@ def run_boosdoom():
 
         running = True
         while running:
-            # 1. Handle Input
             key = get_input()
             if key == 'q':
                 running = False
                 break
 
+            # Toggle Map Editor Mode
+            if key == 'e':
+                in_editor = not in_editor
+                editor_x = int(player_x)
+                editor_y = int(player_y)
+
+            # --- MODE 1: MAP EDITOR ---
+            if in_editor:
+                if key == 'w' and editor_y > 0: editor_y -= 1
+                elif key == 's' and editor_y < MAP_HEIGHT - 1: editor_y += 1
+                elif key == 'a' and editor_x > 0: editor_x -= 1
+                elif key == 'd' and editor_x < MAP_WIDTH - 1: editor_x += 1
+                elif key == ' ':  # Toggle wall with SPACE
+                    # Do not block outer border walls
+                    if 0 < editor_x < MAP_WIDTH - 1 and 0 < editor_y < MAP_HEIGHT - 1:
+                        world_map[editor_y][editor_x] = '0' if world_map[editor_y][editor_x] == '1' else '1'
+
+                # Render Editor Overlay
+                clear_screen()
+                print(f"{C_YELLOW}=== MAP EDITOR MODE ==={C_RESET}")
+                print(f"Move: {C_WHITE}W/A/S/D{C_RESET} | Toggle Wall: {C_WHITE}SPACE{C_RESET} | Exit Editor: {C_WHITE}E{C_RESET}\n")
+
+                for my in range(MAP_HEIGHT):
+                    line = ""
+                    for mx in range(MAP_WIDTH):
+                        if my == editor_y and mx == editor_x:
+                            line += f"{C_YELLOW}[X]{C_RESET}"  # Cursor
+                        elif int(player_y) == my and int(player_x) == mx:
+                            line += f"{C_GREEN} P {C_RESET}"    # Player
+                        elif world_map[my][mx] == '1':
+                            line += "███"
+                        else:
+                            line += " . "
+                    print(line)
+                
+                print(f"\n{C_CYAN}Current Block: {'Wall (1)' if world_map[editor_y][editor_x] == '1' else 'Empty (0)'}{C_RESET}")
+                time.sleep(0.05)
+                continue
+
+            # --- MODE 2: 3D RAYCASTER GAMEPLAY ---
             move_speed = 0.25
             rot_speed = 0.15
 
             if key == 'w':
                 nx = player_x + math.cos(player_angle) * move_speed
                 ny = player_y + math.sin(player_angle) * move_speed
-                if WORLD_MAP[int(ny)][int(nx)] == '0':
+                if world_map[int(ny)][int(nx)] == '0':
                     player_x, player_y = nx, ny
             elif key == 's':
                 nx = player_x - math.cos(player_angle) * move_speed
                 ny = player_y - math.sin(player_angle) * move_speed
-                if WORLD_MAP[int(ny)][int(nx)] == '0':
+                if world_map[int(ny)][int(nx)] == '0':
                     player_x, player_y = nx, ny
             elif key == 'a':
                 player_angle -= rot_speed
             elif key == 'd':
                 player_angle += rot_speed
 
-            # Keep angle within 0 - 2PI
             player_angle %= (2 * math.pi)
 
-            # 2. Raycasting Engine
+            # Raycasting Engine
             buffer = [[" " for _ in range(SCREEN_WIDTH)] for _ in range(SCREEN_HEIGHT)]
 
             for x in range(SCREEN_WIDTH):
-                # Calculate ray angle
                 ray_angle = (player_angle - FOV / 2.0) + (x / float(SCREEN_WIDTH)) * FOV
-                
                 distance_to_wall = 0.0
                 hit_wall = False
 
                 eye_x = math.cos(ray_angle)
                 eye_y = math.sin(ray_angle)
 
-                # Ray step checking
                 while not hit_wall and distance_to_wall < 16.0:
                     distance_to_wall += 0.08
                     test_x = int(player_x + eye_x * distance_to_wall)
@@ -128,17 +184,14 @@ def run_boosdoom():
                         hit_wall = True
                         distance_to_wall = 16.0
                     else:
-                        if WORLD_MAP[test_y][test_x] == '1':
+                        if world_map[test_y][test_x] == '1':
                             hit_wall = True
 
-                # Fisheye lens correction
                 corrected_dist = distance_to_wall * math.cos(ray_angle - player_angle)
 
-                # Calculate ceiling and floor boundaries
                 ceiling = int((SCREEN_HEIGHT / 2.0) - SCREEN_HEIGHT / float(corrected_dist if corrected_dist > 0.1 else 0.1))
                 floor = SCREEN_HEIGHT - ceiling
 
-                # Choose texture shade based on distance
                 if corrected_dist <= 2.0: shade = SHADE_CHARS[0]
                 elif corrected_dist <= 3.5: shade = SHADE_CHARS[1]
                 elif corrected_dist <= 5.0: shade = SHADE_CHARS[2]
@@ -147,42 +200,41 @@ def run_boosdoom():
                 elif corrected_dist <= 12.0: shade = SHADE_CHARS[5]
                 else: shade = SHADE_CHARS[6]
 
-                # Fill screen column
                 for y in range(SCREEN_HEIGHT):
                     if y <= ceiling:
-                        buffer[y][x] = " "  # Sky
+                        buffer[y][x] = " "
                     elif ceiling < y <= floor:
-                        buffer[y][x] = shade  # Wall
+                        buffer[y][x] = shade
                     else:
-                        buffer[y][x] = "."  # Floor
+                        buffer[y][x] = "."
 
-            # Render Minimap overlay (Top-Left Corner)
+            # Minimap overlay
             for my in range(MAP_HEIGHT):
                 for mx in range(MAP_WIDTH):
                     if int(player_y) == my and int(player_x) == mx:
                         buffer[my][mx] = "P"
                     else:
-                        buffer[my][mx] = "#" if WORLD_MAP[my][mx] == '1' else " "
+                        buffer[my][mx] = "#" if world_map[my][mx] == '1' else " "
 
-            # Render HUD Shotgun at bottom center
+            # HUD Shotgun
             gun_art = ["| |", "/ \\"]
             for gi, gline in enumerate(gun_art):
                 start_x = (SCREEN_WIDTH // 2) - 1
                 for gchar_idx, gchar in enumerate(gline):
                     buffer[SCREEN_HEIGHT - 2 + gi][start_x + gchar_idx] = gchar
 
-            # 3. Draw Frame to Terminal
+            # Draw Frame
             output = []
-            output.append(f"{C_RED}=== BOOS-DOOM ASCII v1.0 ==={C_RESET}")
+            output.append(f"{C_RED}=== BOOS-DOOM ASCII v1.1 ==={C_RESET}")
             for row in buffer:
                 output.append("".join(row))
-            output.append(f"{C_CYAN}Controls: W (Forward), S (Back), A/D (Rotate), Q (Quit){C_RESET}")
+            output.append(f"{C_CYAN}Controls: W/S/A/D (Move/Turn), E (Map Editor), Q (Quit){C_RESET}")
             
             clear_screen()
             sys.stdout.write("\n".join(output) + "\n")
             sys.stdout.flush()
 
-            time.sleep(0.03)
+            time.sleep(0.04)
 
     finally:
         if not IS_WINDOWS:
