@@ -17,12 +17,11 @@ else:
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.2.1"
+        self.version = "3.2.2"
         self.running = True
         self.current_dir = os.getcwd()
         self.users_file = "users.json"
         self.save_dir = "user_saves"
-        self.apps_dir = "installed_apps"
         
         # Linked directly to your GitHub repository raw endpoint
         self.repo_url = "https://raw.githubusercontent.com/fabi484/BoosOS-repo/main"
@@ -32,8 +31,6 @@ class BoosOS:
         
         if not os.path.exists(self.save_dir): 
             os.makedirs(self.save_dir)
-        if not os.path.exists(self.apps_dir): 
-            os.makedirs(self.apps_dir)
         
         self.commands = [
             "sysinfo", "ping", "calc", "clear", "exit", "help", "snake", 
@@ -54,6 +51,14 @@ class BoosOS:
         if not os.path.exists(self.user_dir):
             os.makedirs(self.user_dir)
             print(f"[System] Created personal directory for '{username}' at '{self.user_dir}'.")
+
+    def get_apps_dir(self):
+        """Returns the user-specific apps directory."""
+        user = self.current_user if self.current_user else "guest"
+        apps_path = os.path.join(self.save_dir, user, "installed_apps")
+        if not os.path.exists(apps_path):
+            os.makedirs(apps_path)
+        return apps_path
 
     # --- AUTHENTICATION ---
     def load_users(self):
@@ -127,7 +132,7 @@ class BoosOS:
                 with urllib.request.urlopen(os_url, timeout=5) as response:
                     new_code = response.read().decode('utf-8')
                     if "class BoosOS" in new_code:
-                        # Extract remote version
+                        # Extract the remote version string
                         remote_version = None
                         for line in new_code.splitlines():
                             if "self.version =" in line:
@@ -153,26 +158,30 @@ class BoosOS:
                 print("Usage: pkg install <app_name>")
                 return
             app_name = args[1].lower()
-            print(f"[PKG] Fetching '{app_name}' from github.com/fabi484/BoosOS-repo...")
+            apps_dir = self.get_apps_dir()
+            user_label = self.current_user or "guest"
+            print(f"[PKG] Fetching '{app_name}' from github.com/fabi484/BoosOS-repo for user '{user_label}'...")
             try:
                 app_url = f"{self.repo_url}/apps/{app_name}.py?cb={int(time.time())}"
                 with urllib.request.urlopen(app_url, timeout=5) as response:
                     app_code = response.read().decode('utf-8')
-                    app_path = os.path.join(self.apps_dir, f"{app_name}.py")
+                    app_path = os.path.join(apps_dir, f"{app_name}.py")
                     with open(app_path, "w", encoding="utf-8") as f:
                         f.write(app_code)
-                    print(f"[PKG] App '{app_name}' successfully installed!")
+                    print(f"[PKG] App '{app_name}' successfully installed to profile '{user_label}'!")
             except Exception as e:
                 print(f"[PKG Error] Failed to install '{app_name}': {e}")
 
         elif action == "list":
-            print("\n--- Installed Applications ---")
-            apps = [f[:-3] for f in os.listdir(self.apps_dir) if f.endswith(".py")]
+            apps_dir = self.get_apps_dir()
+            user_label = self.current_user or "guest"
+            print(f"\n--- Installed Applications ({user_label}) ---")
+            apps = [f[:-3] for f in os.listdir(apps_dir) if f.endswith(".py")] if os.path.exists(apps_dir) else []
             if apps:
                 for app in apps: 
                     print(f"  * {app}")
             else:
-                print("No external apps installed.")
+                print("No external apps installed for this profile.")
             print()
 
         elif action == "run":
@@ -186,9 +195,10 @@ class BoosOS:
 
     # --- APP EXECUTION ENVIRONMENT ---
     def run_app(self, app_name):
-        app_path = os.path.join(self.apps_dir, f"{app_name}.py")
+        apps_dir = self.get_apps_dir()
+        app_path = os.path.join(apps_dir, f"{app_name}.py")
         if not os.path.exists(app_path):
-            print(f"[Error] App '{app_name}' is not installed. Run 'pkg install {app_name}'.")
+            print(f"[Error] App '{app_name}' is not installed for this user profile. Run 'pkg install {app_name}'.")
             return
         
         print(f"[System] Executing {app_name}...\n")
