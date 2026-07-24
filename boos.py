@@ -7,16 +7,17 @@ try:
 except ImportError:
     HAS_PSUTIL = False
 
-# Cross-platform check for key presses in Snake game
+# Cross-platform check for non-blocking keyboard input
 IS_WINDOWS = sys.platform.startswith("win")
 if IS_WINDOWS:
     import msvcrt
 else:
     import select, tty, termios
 
+
 class BoosOS:
     def __init__(self):
-        self.version = "3.1.2"
+        self.version = "3.2.0"
         self.running = True
         self.current_dir = os.getcwd()
         self.users_file = "users.json"
@@ -27,15 +28,16 @@ class BoosOS:
         self.repo_url = "https://raw.githubusercontent.com/fabi484/BoosOS-repo/main"
         
         self.current_user = None
+        self.user_dir = None
         
-        if not os.path.exists(self.save_dir): os.makedirs(self.save_dir)
-        if not os.path.exists(self.apps_dir): os.makedirs(self.apps_dir)
+        if not os.path.exists(self.save_dir): 
+            os.makedirs(self.save_dir)
+        if not os.path.exists(self.apps_dir): 
+            os.makedirs(self.apps_dir)
         
         self.commands = [
-            "sysinfo", "ping", "calc", "clear", "exit", "help", "dm", "snake", 
-            "tictactoe", "top", "notes", "net", "nano", "date", "bench", 
-            "timer", "search", "ls", "dir", "cd", "login", "register", "whoami",
-            "pkg", "run"
+            "sysinfo", "ping", "calc", "clear", "exit", "help", "snake", 
+            "tictactoe", "top", "login", "register", "whoami", "pkg", "run"
         ]
 
     def clear_screen(self):
@@ -44,6 +46,71 @@ class BoosOS:
     def get_suggestion(self, cmd):
         matches = difflib.get_close_matches(cmd, self.commands, n=1, cutoff=0.5)
         return matches[0] if matches else None
+
+    # --- USER FOLDER MANAGEMENT ---
+    def set_active_user(self, username):
+        self.current_user = username
+        self.user_dir = os.path.join(self.save_dir, username)
+        if not os.path.exists(self.user_dir):
+            os.makedirs(self.user_dir)
+            print(f"[System] Created personal directory for '{username}' at '{self.user_dir}'.")
+
+    # --- AUTHENTICATION ---
+    def load_users(self):
+        return json.load(open(self.users_file, "r")) if os.path.exists(self.users_file) else {}
+
+    def register(self):
+        users = self.load_users()
+        u = input("Create Username: ").strip()
+        p = input("Create Password: ").strip()
+        
+        if not u:
+            print("[Error] Username cannot be empty.")
+            return
+
+        if u in users:
+            print("[Error] Username already exists.")
+            return
+
+        users[u] = p
+        with open(self.users_file, "w") as f:
+            json.dump(users, f, indent=4)
+
+        self.set_active_user(u)
+        print(f"[System] User '{u}' successfully registered.")
+
+    def login(self):
+        users = self.load_users()
+        u = input("Username: ").strip()
+        p = input("Password: ").strip()
+        
+        if users.get(u) == p:
+            self.set_active_user(u)
+            print(f"Welcome back, {u}!")
+        else:
+            print("[Auth Error] Invalid username or password.")
+
+    # --- DATA PERSISTENCE ---
+    def save_data(self, key, value):
+        if not self.current_user:
+            return
+        
+        if not self.user_dir or not os.path.exists(self.user_dir):
+            self.set_active_user(self.current_user)
+            
+        path = os.path.join(self.user_dir, "data.json")
+        data = self.load_user_data()
+        data[key] = value
+        
+        with open(path, "w") as f:
+            json.dump(data, f, indent=4)
+        print(f"[System] Saved persistent data for {self.current_user}.")
+
+    def load_user_data(self):
+        if not self.current_user or not self.user_dir:
+            return {}
+        path = os.path.join(self.user_dir, "data.json")
+        return json.load(open(path, "r")) if os.path.exists(path) else {}
 
     # --- ONLINE PACKAGE MANAGER (`pkg`) ---
     def pkg_manager(self, args):
@@ -56,13 +123,12 @@ class BoosOS:
         if action == "update":
             print("[PKG] Checking for BoosOS updates...")
             try:
-                # Cache-busting timestamp prevents GitHub CDN delays
                 os_url = f"{self.repo_url}/boos.py?cb={int(time.time())}"
                 with urllib.request.urlopen(os_url, timeout=5) as response:
                     new_code = response.read().decode('utf-8')
                     if "class BoosOS" in new_code:
                         current_file = os.path.realpath(__file__)
-                        with open(current_file, "w") as f:
+                        with open(current_file, "w", encoding="utf-8") as f:
                             f.write(new_code)
                         print("[PKG] OS successfully updated! Restart BoosOS to load changes.")
                     else:
@@ -81,7 +147,7 @@ class BoosOS:
                 with urllib.request.urlopen(app_url, timeout=5) as response:
                     app_code = response.read().decode('utf-8')
                     app_path = os.path.join(self.apps_dir, f"{app_name}.py")
-                    with open(app_path, "w") as f:
+                    with open(app_path, "w", encoding="utf-8") as f:
                         f.write(app_code)
                     print(f"[PKG] App '{app_name}' successfully installed!")
             except Exception as e:
@@ -91,7 +157,8 @@ class BoosOS:
             print("\n--- Installed Applications ---")
             apps = [f[:-3] for f in os.listdir(self.apps_dir) if f.endswith(".py")]
             if apps:
-                for app in apps: print(f"  * {app}")
+                for app in apps: 
+                    print(f"  * {app}")
             else:
                 print("No external apps installed.")
             print()
@@ -105,6 +172,7 @@ class BoosOS:
         else:
             print(f"[PKG] Unknown package command '{action}'.")
 
+    # --- APP EXECUTION ENVIRONMENT FIX ---
     def run_app(self, app_name):
         app_path = os.path.join(self.apps_dir, f"{app_name}.py")
         if not os.path.exists(app_path):
@@ -113,45 +181,24 @@ class BoosOS:
         
         print(f"[System] Executing {app_name}...\n")
         try:
-            with open(app_path, "r") as f:
+            with open(app_path, "r", encoding="utf-8") as f:
                 app_code = f.read()
-            exec_globals = {"os": os, "sys": sys, "time": time, "math": math, "random": random}
+            
+            # Injecting standard globals so external scripts don't fail on missing imports
+            exec_globals = {
+                "__builtins__": __builtins__,
+                "os": os,
+                "sys": sys,
+                "time": time,
+                "math": math,
+                "random": random,
+                "IS_WINDOWS": IS_WINDOWS,
+                "user_dir": self.user_dir,
+                "current_user": self.current_user
+            }
             exec(app_code, exec_globals)
         except Exception as e:
-            print(f"[App Error] Execution halted: {e}")
-
-    # --- DATA PERSISTENCE ---
-    def save_data(self, key, value):
-        if not self.current_user: return
-        path = os.path.join(self.save_dir, f"{self.current_user}.json")
-        data = self.load_user_data()
-        data[key] = value
-        with open(path, "w") as f: json.dump(data, f)
-        print(f"[System] Persistent data saved for {self.current_user}.")
-
-    def load_user_data(self):
-        if not self.current_user: return {}
-        path = os.path.join(self.save_dir, f"{self.current_user}.json")
-        return json.load(open(path, "r")) if os.path.exists(path) else {}
-
-    # --- AUTHENTICATION ---
-    def load_users(self):
-        return json.load(open(self.users_file, "r")) if os.path.exists(self.users_file) else {}
-
-    def register(self):
-        users = self.load_users()
-        u, p = input("Create Username: "), input("Create Password: ")
-        users[u] = p
-        json.dump(users, open(self.users_file, "w"))
-        print("Registration complete.")
-
-    def login(self):
-        users = self.load_users()
-        u, p = input("Username: "), input("Password: ")
-        if users.get(u) == p: 
-            self.current_user = u
-            print(f"Welcome, {u}!")
-        else: print("Authentication Failed.")
+            print(f"[App Error] Execution of '{app_name}' failed: {e}")
 
     # --- SYSTEM UTILITIES ---
     def ping_host(self, host='8.8.8.8'):
@@ -159,7 +206,8 @@ class BoosOS:
         try:
             socket.create_connection((host, 80), timeout=2)
             print("Response received.")
-        except: print("Host unreachable.")
+        except: 
+            print("Host unreachable.")
 
     def show_sysinfo(self):
         if HAS_PSUTIL:
@@ -179,19 +227,24 @@ class BoosOS:
             return
         print(f"{'PID':<10} {'NAME':<20} {'CPU%'}")
         for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
-            try: print(f"{proc.info['pid']:<10} {proc.info['name']:<20} {proc.info['cpu_percent']}")
-            except: pass
+            try: 
+                print(f"{proc.info['pid']:<10} {proc.info['name']:<20} {proc.info['cpu_percent']}")
+            except: 
+                pass
 
     # --- GAMES ---
     def tictactoe(self):
         board = [" " for _ in range(9)]
-        def show(): print(f"{board[0]}|{board[1]}|{board[2]}\n-+-+-\n{board[3]}|{board[4]}|{board[5]}\n-+-+-\n{board[6]}|{board[7]}|{board[8]}")
+        def show(): 
+            print(f"{board[0]}|{board[1]}|{board[2]}\n-+-+-\n{board[3]}|{board[4]}|{board[5]}\n-+-+-\n{board[6]}|{board[7]}|{board[8]}")
         for turn in range(9):
             show()
             try:
                 move = int(input(f"{'X' if turn%2==0 else 'O'} move (0-8): "))
-                if board[move] == " ": board[move] = 'X' if turn%2==0 else 'O'
-            except: print("Invalid Input.")
+                if board[move] == " ": 
+                    board[move] = 'X' if turn%2==0 else 'O'
+            except: 
+                print("Invalid Input.")
         self.save_data("last_game", "tictactoe")
 
     def snake_game(self):
@@ -235,25 +288,30 @@ class BoosOS:
                     elif move == 'd': direction = [0, 1]
 
                 new_head = [snake[0][0] + direction[0], snake[0][1] + direction[1]]
-                if not (0 <= new_head[0] < height and 0 <= new_head[1] < width) or new_head in snake: break
+                if not (0 <= new_head[0] < height and 0 <= new_head[1] < width) or new_head in snake: 
+                    break
                 snake.insert(0, new_head)
                 if new_head == food:
                     score += 10
                     food = [random.randint(0, height-1), random.randint(0, width-1)]
-                else: snake.pop()
+                else: 
+                    snake.pop()
         finally:
             if not IS_WINDOWS:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-        if self.current_user: self.save_data("snake_high_score", score)
+        if self.current_user: 
+            self.save_data("snake_high_score", score)
 
     def advanced_calc(self):
         print("Calc: Supports +, -, *, /, **, sqrt(x), abs(x). Type 'exit' to quit.")
         while True:
             cmd = input("calc> ")
             if cmd == 'exit': break
-            try: print(eval(cmd, {"__builtins__": None}, {"sqrt": math.sqrt, "pow": pow, "abs": abs}))
-            except Exception as e: print(f"Error: {e}")
+            try: 
+                print(eval(cmd, {"__builtins__": None}, {"sqrt": math.sqrt, "pow": pow, "abs": abs}))
+            except Exception as e: 
+                print(f"Error: {e}")
 
     # --- KERNEL CORE LOOP ---
     def run(self):
@@ -281,11 +339,14 @@ class BoosOS:
                     "pkg": lambda: self.pkg_manager(ui[1:]),
                     "run": lambda: self.run_app(ui[1]) if len(ui) > 1 else print("Usage: run <app_name>")
                 }
-                if c in actions: actions[c]()
+                if c in actions: 
+                    actions[c]()
                 else:
                     sug = self.get_suggestion(c)
                     print(f"Command '{c}' not found. {f'Did you mean {sug}?' if sug else ''}\n")
-            except EOFError: break
+            except EOFError: 
+                break
+
 
 if __name__ == "__main__":
     try:
