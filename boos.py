@@ -17,7 +17,7 @@ else:
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.2.5"
+        self.version = "3.2.6"
         self.running = True
         self.save_dir = "user_saves"
         
@@ -277,7 +277,8 @@ class BoosOS:
                 "random": random,
                 "IS_WINDOWS": IS_WINDOWS,
                 "user_dir": self.user_dir,
-                "current_user": self.current_user
+                "current_user": self.current_user,
+                "boos_version": self.version
             }
             exec(app_code, exec_globals)
         except Exception as e:
