@@ -1,8 +1,22 @@
-import time, os, psutil, socket, difflib, urllib.parse, urllib.request, webbrowser, random, select, sys, tty, termios, math, datetime, json
+import time, os, socket, difflib, urllib.parse, urllib.request, webbrowser, random, sys, math, datetime, json
+
+# Optional hardware monitoring library
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
+
+# Cross-platform check for key presses in Snake game
+IS_WINDOWS = sys.platform.startswith("win")
+if IS_WINDOWS:
+    import msvcrt
+else:
+    import select, tty, termios
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.1.0"
+        self.version = "3.1.2"
         self.running = True
         self.current_dir = os.getcwd()
         self.users_file = "users.json"
@@ -24,6 +38,9 @@ class BoosOS:
             "pkg", "run"
         ]
 
+    def clear_screen(self):
+        os.system("cls" if IS_WINDOWS else "clear")
+
     def get_suggestion(self, cmd):
         matches = difflib.get_close_matches(cmd, self.commands, n=1, cutoff=0.5)
         return matches[0] if matches else None
@@ -39,13 +56,17 @@ class BoosOS:
         if action == "update":
             print("[PKG] Checking for BoosOS updates...")
             try:
-                os_url = f"{self.repo_url}/boos.py"
+                # Cache-busting timestamp prevents GitHub CDN delays
+                os_url = f"{self.repo_url}/boos.py?cb={int(time.time())}"
                 with urllib.request.urlopen(os_url, timeout=5) as response:
                     new_code = response.read().decode('utf-8')
-                    current_file = os.path.realpath(__file__)
-                    with open(current_file, "w") as f:
-                        f.write(new_code)
-                    print("[PKG] OS successfully updated! Restart BoosOS to load changes.")
+                    if "class BoosOS" in new_code:
+                        current_file = os.path.realpath(__file__)
+                        with open(current_file, "w") as f:
+                            f.write(new_code)
+                        print("[PKG] OS successfully updated! Restart BoosOS to load changes.")
+                    else:
+                        print("[PKG Error] Downloaded invalid script. Update aborted.")
             except Exception as e:
                 print(f"[PKG Error] Failed to update OS: {e}")
 
@@ -56,7 +77,7 @@ class BoosOS:
             app_name = args[1].lower()
             print(f"[PKG] Fetching '{app_name}' from github.com/fabi484/BoosOS-repo...")
             try:
-                app_url = f"{self.repo_url}/apps/{app_name}.py"
+                app_url = f"{self.repo_url}/apps/{app_name}.py?cb={int(time.time())}"
                 with urllib.request.urlopen(app_url, timeout=5) as response:
                     app_code = response.read().decode('utf-8')
                     app_path = os.path.join(self.apps_dir, f"{app_name}.py")
@@ -141,14 +162,21 @@ class BoosOS:
         except: print("Host unreachable.")
 
     def show_sysinfo(self):
-        try:
-            bat = psutil.sensors_battery()
-            bat_str = f"{bat.percent}%" if bat else "N/A"
-        except (PermissionError, AttributeError):
-            bat_str = "N/A (Access Denied)"
+        if HAS_PSUTIL:
+            try:
+                bat = psutil.sensors_battery()
+                bat_str = f"{bat.percent}%" if bat else "N/A"
+            except (PermissionError, AttributeError):
+                bat_str = "N/A (Access Denied)"
+        else:
+            bat_str = "N/A (psutil not installed)"
+            
         print(f"\n--- BoosOS {self.version} | {time.strftime('%H:%M:%S')} | Batt: {bat_str} ---\n")
 
     def task_monitor(self):
+        if not HAS_PSUTIL:
+            print("[System] Task monitor requires 'psutil'. Install via: pip install psutil")
+            return
         print(f"{'PID':<10} {'NAME':<20} {'CPU%'}")
         for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
             try: print(f"{proc.info['pid']:<10} {proc.info['name']:<20} {proc.info['cpu_percent']}")
@@ -171,12 +199,15 @@ class BoosOS:
         snake, food = [[5, 5]], [2, 2]
         direction = [0, 1]
         score = 0
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        try:
+        
+        if not IS_WINDOWS:
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
             tty.setcbreak(fd)
+
+        try:
             while True:
-                print("\033[H\033[J", end="")
+                self.clear_screen()
                 print(f"BoosOS Snake | Score: {score} | Q to quit")
                 for y in range(height):
                     line = ""
@@ -186,13 +217,23 @@ class BoosOS:
                         elif [y, x] == food: line += " * "
                         else: line += " . "
                     print(line)
-                if select.select([sys.stdin], [], [], 0.1)[0]:
-                    move = sys.stdin.read(1).lower()
+
+                move = None
+                if IS_WINDOWS:
+                    time.sleep(0.1)
+                    if msvcrt.kbhit():
+                        move = msvcrt.getch().decode('utf-8', errors='ignore').lower()
+                else:
+                    if select.select([sys.stdin], [], [], 0.1)[0]:
+                        move = sys.stdin.read(1).lower()
+
+                if move:
                     if move == 'q': break
-                    if move == 'w': direction = [-1, 0]
+                    elif move == 'w': direction = [-1, 0]
                     elif move == 'a': direction = [0, -1]
                     elif move == 's': direction = [1, 0]
                     elif move == 'd': direction = [0, 1]
+
                 new_head = [snake[0][0] + direction[0], snake[0][1] + direction[1]]
                 if not (0 <= new_head[0] < height and 0 <= new_head[1] < width) or new_head in snake: break
                 snake.insert(0, new_head)
@@ -200,7 +241,10 @@ class BoosOS:
                     score += 10
                     food = [random.randint(0, height-1), random.randint(0, width-1)]
                 else: snake.pop()
-        finally: termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        finally:
+            if not IS_WINDOWS:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
         if self.current_user: self.save_data("snake_high_score", score)
 
     def advanced_calc(self):
@@ -213,7 +257,7 @@ class BoosOS:
 
     # --- KERNEL CORE LOOP ---
     def run(self):
-        print(f"\n--- BoosOS v{self.version} [Package-Manager Enabled] ---\n")
+        print(f"\n--- BoosOS v{self.version} [Cross-Platform] ---\n")
         while self.running:
             prompt = f"{self.current_user or 'guest'}@boos:{os.path.basename(self.current_dir)}~$ "
             try:
@@ -225,7 +269,7 @@ class BoosOS:
                     "sysinfo": self.show_sysinfo,
                     "ping": lambda: self.ping_host(ui[1] if len(ui)>1 else '8.8.8.8'),
                     "calc": self.advanced_calc,
-                    "clear": lambda: print("\033[H\033[J", end=""),
+                    "clear": self.clear_screen,
                     "exit": lambda: setattr(self, 'running', False),
                     "help": lambda: print(f"Available: {', '.join(self.commands)}"),
                     "snake": self.snake_game,
@@ -244,4 +288,10 @@ class BoosOS:
             except EOFError: break
 
 if __name__ == "__main__":
-    BoosOS().run()
+    try:
+        BoosOS().run()
+    except Exception as e:
+        print(f"\n[System Error] {e}")
+    finally:
+        if IS_WINDOWS:
+            input("\nPress Enter to exit...")
