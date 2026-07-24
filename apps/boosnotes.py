@@ -10,7 +10,10 @@ NOTES_FILE = NOTES_DIR / "notes.json"
 
 def ensure_storage_exists():
     """Ensure the user's BoosNotes directory exists."""
-    NOTES_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        NOTES_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
 
 def load_notes():
     ensure_storage_exists()
@@ -24,8 +27,11 @@ def load_notes():
 
 def save_notes(notes):
     ensure_storage_exists()
-    with open(NOTES_FILE, "w", encoding="utf-8") as f:
-        json.dump(notes, f, indent=2)
+    try:
+        with open(NOTES_FILE, "w", encoding="utf-8") as f:
+            json.dump(notes, f, indent=2)
+    except Exception as e:
+        print(f"Error saving notes: {e}", flush=True)
 
 def run_boosnotes():
     # Enable ANSI escape sequences in Windows PowerShell/CMD
@@ -44,12 +50,15 @@ def run_boosnotes():
     notes = load_notes()
 
     def clear_screen():
-        os.system("cls" if os.name == "nt" else "clear")
+        if os.name == "nt":
+            os.system("cls")
+        else:
+            os.system("clear")
 
     while True:
         clear_screen()
         print(f"{C_BOLD}{C_YELLOW}===================================================={C_RESET}", flush=True)
-        print(f"{C_BOLD}{C_CYAN}                BoosNotes App v1.1                  {C_RESET}", flush=True)
+        print(f"{C_BOLD}{C_CYAN}              BoosNotes App v1.1.1 (Patch)          {C_RESET}", flush=True)
         print(f"{C_BOLD}{C_YELLOW}===================================================={C_RESET}", flush=True)
         print(f"{C_WHITE}Storage Path: {NOTES_FILE}{C_RESET}\n", flush=True)
 
@@ -58,8 +67,8 @@ def run_boosnotes():
         else:
             print(f"{C_BOLD}{C_WHITE}Your Saved Notes:{C_RESET}", flush=True)
             for idx, note in enumerate(notes, 1):
-                print(f" {C_GREEN}[{idx}]{C_RESET} {C_BOLD}{note['title']}{C_RESET}", flush=True)
-                print(f"     {C_WHITE}{note['content']}{C_RESET}\n", flush=True)
+                print(f" {C_GREEN}[{idx}]{C_RESET} {C_BOLD}{note.get('title', 'Untitled')}{C_RESET}", flush=True)
+                print(f"     {C_WHITE}{note.get('content', '')}{C_RESET}\n", flush=True)
 
         print(f"{C_YELLOW}Options:{C_RESET}", flush=True)
         print(f" [{C_CYAN}1{C_RESET}] Add New Note", flush=True)
@@ -76,7 +85,7 @@ def run_boosnotes():
                 content = input(f"{C_WHITE}Enter note content: {C_RESET}").strip()
                 notes.append({"title": title, "content": content})
                 save_notes(notes)
-                print(f"\n{C_GREEN}Note saved in {NOTES_DIR}!{C_RESET}", flush=True)
+                print(f"\n{C_GREEN}Note saved successfully in {NOTES_DIR}!{C_RESET}", flush=True)
                 input("Press Enter to continue...")
 
             elif choice == "2":
@@ -91,7 +100,7 @@ def run_boosnotes():
                     if 0 <= idx < len(notes):
                         removed = notes.pop(idx)
                         save_notes(notes)
-                        print(f"\n{C_RED}Deleted note: '{removed['title']}'{C_RESET}", flush=True)
+                        print(f"\n{C_RED}Deleted note: '{removed.get('title')}'{C_RESET}", flush=True)
                     else:
                         print(f"\n{C_RED}Invalid note number!{C_RESET}", flush=True)
                 else:
@@ -103,6 +112,7 @@ def run_boosnotes():
                 break
 
         except (KeyboardInterrupt, EOFError):
+            print(f"\n{C_CYAN}Exiting BoosNotes...{C_RESET}", flush=True)
             break
 
 if __name__ == "__main__":
