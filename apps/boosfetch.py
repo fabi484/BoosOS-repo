@@ -51,17 +51,15 @@ def run_boosfetch():
     C_BOLD   = "\033[1m"
     C_RESET  = "\033[0m"
 
-    # Custom ASCII Art (BoosOS Logo)
+    # Custom ASCII Art (Square Box with 'B' Logo)
     logo = [
-        f"{C_CYAN}    .---.      {C_RESET}",
-        f"{C_CYAN}   /  _  \\     {C_RESET}",
-        f"{C_CYAN}  |  ( )  |    {C_RESET}",
-        f"{C_CYAN}   \\  _  /     {C_RESET}",
-        f"{C_CYAN}  .'  _  '.    {C_RESET}",
-        f"{C_CYAN} /  /   \\  \\   {C_RESET}",
-        f"{C_CYAN} ;  ;   ;  ;   {C_RESET}",
-        f"{C_CYAN} |  |   |  |   {C_RESET}",
-        f"{C_CYAN} '  '   '  '   {C_RESET}"
+        f"{C_CYAN}┌─────────────┐{C_RESET}",
+        f"{C_CYAN}│  ██████╗    │{C_RESET}",
+        f"{C_CYAN}│  ██╔══██╗   │{C_RESET}",
+        f"{C_CYAN}│  ██████╔╝   │{C_RESET}",
+        f"{C_CYAN}│  ██╔══██╗   │{C_RESET}",
+        f"{C_CYAN}│  ██████╔╝   │{C_RESET}",
+        f"{C_CYAN}└─────────────┘{C_RESET}"
     ]
 
     # Data items to render
