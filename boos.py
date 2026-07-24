@@ -17,7 +17,7 @@ else:
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.2.0"
+        self.version = "3.2.1"
         self.running = True
         self.current_dir = os.getcwd()
         self.users_file = "users.json"
@@ -127,10 +127,22 @@ class BoosOS:
                 with urllib.request.urlopen(os_url, timeout=5) as response:
                     new_code = response.read().decode('utf-8')
                     if "class BoosOS" in new_code:
+                        # Extract the remote version string
+                        remote_version = None
+                        for line in new_code.splitlines():
+                            if "self.version =" in line:
+                                remote_version = line.split("=")[1].strip().strip('"').strip("'")
+                                break
+                        
+                        # Check if system is already up to date
+                        if remote_version and remote_version == self.version:
+                            print(f"[PKG] You are already running the latest version of BoosOS (v{self.version})!")
+                            return
+
                         current_file = os.path.realpath(__file__)
                         with open(current_file, "w", encoding="utf-8") as f:
                             f.write(new_code)
-                        print("[PKG] OS successfully updated! Restart BoosOS to load changes.")
+                        print(f"[PKG] OS successfully updated from v{self.version} to v{remote_version or 'newer'}! Restart BoosOS to apply.")
                     else:
                         print("[PKG Error] Downloaded invalid script. Update aborted.")
             except Exception as e:
@@ -172,7 +184,7 @@ class BoosOS:
         else:
             print(f"[PKG] Unknown package command '{action}'.")
 
-    # --- APP EXECUTION ENVIRONMENT FIX ---
+    # --- APP EXECUTION ENVIRONMENT ---
     def run_app(self, app_name):
         app_path = os.path.join(self.apps_dir, f"{app_name}.py")
         if not os.path.exists(app_path):
@@ -184,7 +196,6 @@ class BoosOS:
             with open(app_path, "r", encoding="utf-8") as f:
                 app_code = f.read()
             
-            # Injecting standard globals so external scripts don't fail on missing imports
             exec_globals = {
                 "__builtins__": __builtins__,
                 "os": os,
