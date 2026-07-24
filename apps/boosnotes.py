@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 from pathlib import Path
 
@@ -27,6 +28,10 @@ def save_notes(notes):
         json.dump(notes, f, indent=2)
 
 def run_boosnotes():
+    # Enable ANSI escape sequences in Windows PowerShell/CMD
+    if os.name == "nt":
+        os.system("")
+
     # ANSI Colors
     C_GREEN  = "\033[92m"
     C_YELLOW = "\033[93m"
@@ -43,23 +48,23 @@ def run_boosnotes():
 
     while True:
         clear_screen()
-        print(f"{C_BOLD}{C_YELLOW}===================================================={C_RESET}")
-        print(f"{C_BOLD}{C_CYAN}                BoosNotes App v1.1                  {C_RESET}")
-        print(f"{C_BOLD}{C_YELLOW}===================================================={C_RESET}")
-        print(f"{C_WHITE}Storage Path: {NOTES_FILE}{C_RESET}\n")
+        print(f"{C_BOLD}{C_YELLOW}===================================================={C_RESET}", flush=True)
+        print(f"{C_BOLD}{C_CYAN}                BoosNotes App v1.1                  {C_RESET}", flush=True)
+        print(f"{C_BOLD}{C_YELLOW}===================================================={C_RESET}", flush=True)
+        print(f"{C_WHITE}Storage Path: {NOTES_FILE}{C_RESET}\n", flush=True)
 
         if not notes:
-            print(f"{C_WHITE}No notes available. Create one using option '1'.{C_RESET}\n")
+            print(f"{C_WHITE}No notes available. Create one using option '1'.{C_RESET}\n", flush=True)
         else:
-            print(f"{C_BOLD}{C_WHITE}Your Saved Notes:{C_RESET}")
+            print(f"{C_BOLD}{C_WHITE}Your Saved Notes:{C_RESET}", flush=True)
             for idx, note in enumerate(notes, 1):
-                print(f" {C_GREEN}[{idx}]{C_RESET} {C_BOLD}{note['title']}{C_RESET}")
-                print(f"     {C_WHITE}{note['content']}{C_RESET}\n")
+                print(f" {C_GREEN}[{idx}]{C_RESET} {C_BOLD}{note['title']}{C_RESET}", flush=True)
+                print(f"     {C_WHITE}{note['content']}{C_RESET}\n", flush=True)
 
-        print(f"{C_YELLOW}Options:{C_RESET}")
-        print(f" [{C_CYAN}1{C_RESET}] Add New Note")
-        print(f" [{C_CYAN}2{C_RESET}] Delete Note")
-        print(f" [{C_CYAN}3{C_RESET}] Exit")
+        print(f"{C_YELLOW}Options:{C_RESET}", flush=True)
+        print(f" [{C_CYAN}1{C_RESET}] Add New Note", flush=True)
+        print(f" [{C_CYAN}2{C_RESET}] Delete Note", flush=True)
+        print(f" [{C_CYAN}3{C_RESET}] Exit", flush=True)
 
         try:
             choice = input(f"\n{C_CYAN}boosnotes> {C_RESET}").strip()
@@ -71,12 +76,12 @@ def run_boosnotes():
                 content = input(f"{C_WHITE}Enter note content: {C_RESET}").strip()
                 notes.append({"title": title, "content": content})
                 save_notes(notes)
-                print(f"\n{C_GREEN}Note saved in {NOTES_DIR}!{C_RESET}")
+                print(f"\n{C_GREEN}Note saved in {NOTES_DIR}!{C_RESET}", flush=True)
                 input("Press Enter to continue...")
 
             elif choice == "2":
                 if not notes:
-                    print(f"\n{C_RED}No notes to delete!{C_RESET}")
+                    print(f"\n{C_RED}No notes to delete!{C_RESET}", flush=True)
                     input("Press Enter to continue...")
                     continue
                 
@@ -86,15 +91,15 @@ def run_boosnotes():
                     if 0 <= idx < len(notes):
                         removed = notes.pop(idx)
                         save_notes(notes)
-                        print(f"\n{C_RED}Deleted note: '{removed['title']}'{C_RESET}")
+                        print(f"\n{C_RED}Deleted note: '{removed['title']}'{C_RESET}", flush=True)
                     else:
-                        print(f"\n{C_RED}Invalid note number!{C_RESET}")
+                        print(f"\n{C_RED}Invalid note number!{C_RESET}", flush=True)
                 else:
-                    print(f"\n{C_RED}Please enter a valid number!{C_RESET}")
+                    print(f"\n{C_RED}Please enter a valid number!{C_RESET}", flush=True)
                 input("Press Enter to continue...")
 
             elif choice in ["3", "exit", "quit", "q"]:
-                print(f"\n{C_CYAN}Exiting BoosNotes...{C_RESET}")
+                print(f"\n{C_CYAN}Exiting BoosNotes...{C_RESET}", flush=True)
                 break
 
         except (KeyboardInterrupt, EOFError):
