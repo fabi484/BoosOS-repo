@@ -1,10 +1,19 @@
 import os
 import json
+from pathlib import Path
 
-NOTES_FILE = "notes.json"
+# Create 'BoosNotes' folder inside the user's main home folder
+USER_HOME = Path.home()
+NOTES_DIR = USER_HOME / "BoosNotes"
+NOTES_FILE = NOTES_DIR / "notes.json"
+
+def ensure_storage_exists():
+    """Ensure the user's BoosNotes directory exists."""
+    NOTES_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_notes():
-    if os.path.exists(NOTES_FILE):
+    ensure_storage_exists()
+    if NOTES_FILE.exists():
         try:
             with open(NOTES_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -13,6 +22,7 @@ def load_notes():
     return []
 
 def save_notes(notes):
+    ensure_storage_exists()
     with open(NOTES_FILE, "w", encoding="utf-8") as f:
         json.dump(notes, f, indent=2)
 
@@ -34,8 +44,9 @@ def run_boosnotes():
     while True:
         clear_screen()
         print(f"{C_BOLD}{C_YELLOW}===================================================={C_RESET}")
-        print(f"{C_BOLD}{C_CYAN}                BoosNotes App v1.0                  {C_RESET}")
-        print(f"{C_BOLD}{C_YELLOW}===================================================={C_RESET}\n")
+        print(f"{C_BOLD}{C_CYAN}                BoosNotes App v1.1                  {C_RESET}")
+        print(f"{C_BOLD}{C_YELLOW}===================================================={C_RESET}")
+        print(f"{C_WHITE}Storage Path: {NOTES_FILE}{C_RESET}\n")
 
         if not notes:
             print(f"{C_WHITE}No notes available. Create one using option '1'.{C_RESET}\n")
@@ -60,7 +71,7 @@ def run_boosnotes():
                 content = input(f"{C_WHITE}Enter note content: {C_RESET}").strip()
                 notes.append({"title": title, "content": content})
                 save_notes(notes)
-                print(f"\n{C_GREEN}Note saved successfully!{C_RESET}")
+                print(f"\n{C_GREEN}Note saved in {NOTES_DIR}!{C_RESET}")
                 input("Press Enter to continue...")
 
             elif choice == "2":
@@ -89,4 +100,5 @@ def run_boosnotes():
         except (KeyboardInterrupt, EOFError):
             break
 
-run_boosnotes()
+if __name__ == "__main__":
+    run_boosnotes()
