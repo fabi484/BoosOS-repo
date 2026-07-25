@@ -1,3 +1,4 @@
+# BoosOS v3.2.6.1 - Complete System Script with BoosNotes & Pydroid 3 Fixes
 import time, os, socket, difflib, urllib.parse, urllib.request, webbrowser, random, sys, math, datetime, json
 
 # Optional hardware monitoring library
@@ -14,10 +15,85 @@ if IS_WINDOWS:
 else:
     import select, tty, termios
 
+# Detect Pydroid 3 / Mobile environment to prevent input/buffer errors
+IS_PYDROID = 'pydroid' in sys.executable.lower() or os.path.exists('/data/data/ru.iiec.pydroid3')
+
+def safe_input(prompt=""):
+    """Safe input compatible with Pydroid 3 and standard terminals."""
+    try:
+        val = input(prompt)
+        return val
+    except EOFError:
+        return ""
+
+
+class BoosNotes:
+    """Native notes application for BoosOS."""
+    def __init__(self, boos_instance):
+        self.boos = boos_instance
+
+    def get_notes_file(self):
+        if not self.boos.user_dir or not os.path.exists(self.boos.user_dir):
+            self.boos.set_active_user(self.boos.current_user or "guest")
+        return os.path.join(self.boos.user_dir, "boosnotes_data.json")
+
+    def load_notes(self):
+        notes_file = self.get_notes_file()
+        if os.path.exists(notes_file):
+            try:
+                with open(notes_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                return {}
+        return {}
+
+    def save_notes(self, notes):
+        notes_file = self.get_notes_file()
+        with open(notes_file, "w", encoding="utf-8") as f:
+            json.dump(notes, f, indent=4)
+
+    def run(self):
+        notes = self.load_notes()
+        while True:
+            print("\n--- BoosNotes v1.1.2 ---")
+            print("1. View all notes")
+            print("2. Add / Edit a note")
+            print("3. Delete a note")
+            print("4. Back to BoosOS")
+            
+            choice = safe_input("Choose an option: ").strip()
+            
+            if choice == "1":
+                if not notes:
+                    print("\n[No notes saved yet.]")
+                else:
+                    print("\nYour notes:")
+                    for title, content in notes.items():
+                        print(f" * {title}: {content}")
+            elif choice == "2":
+                title = safe_input("Note title: ").strip()
+                if title:
+                    content = safe_input("Content: ").strip()
+                    notes[title] = content
+                    self.save_notes(notes)
+                    print("[Note saved successfully!]")
+            elif choice == "3":
+                title = safe_input("Title of the note to delete: ").strip()
+                if title in notes:
+                    del notes[title]
+                    self.save_notes(notes)
+                    print("[Note deleted!]")
+                else:
+                    print("[Note not found.]")
+            elif choice == "4":
+                break
+            else:
+                print("Invalid option.")
+
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.2.6"
+        self.version = "3.2.6.1"
         self.running = True
         self.save_dir = "user_saves"
         
@@ -34,9 +110,12 @@ class BoosOS:
         # Set default guest profile
         self.set_active_user("guest")
 
+        # Initialize native BoosNotes app
+        self.boos_notes = BoosNotes(self)
+
         self.commands = [
             "sysinfo", "ping", "calc", "clear", "exit", "help", "snake", 
-            "tictactoe", "top", "login", "register", "whoami", "pkg", "run"
+            "tictactoe", "top", "login", "register", "whoami", "pkg", "run", "notes"
         ]
 
     def clear_screen(self):
@@ -85,8 +164,8 @@ class BoosOS:
 
     def register(self):
         users = self.load_users()
-        u = input("Create Username: ").strip()
-        p = input("Create Password: ").strip()
+        u = safe_input("Create Username: ").strip()
+        p = safe_input("Create Password: ").strip()
         
         if not u:
             print("[Error] Username cannot be empty.")
@@ -105,8 +184,8 @@ class BoosOS:
 
     def login(self):
         users = self.load_users()
-        u = input("Username: ").strip()
-        p = input("Password: ").strip()
+        u = safe_input("Username: ").strip()
+        p = safe_input("Password: ").strip()
         
         if users.get(u) == p:
             self.set_active_user(u)
@@ -303,7 +382,8 @@ class BoosOS:
         else:
             bat_str = "N/A (psutil not installed)"
             
-        print(f"\n--- BoosOS {self.version} | Drive: C:\\ | {time.strftime('%H:%M:%S')} | Batt: {bat_str} ---\n")
+        pydroid_status = "Yes" if IS_PYDROID else "No"
+        print(f"\n--- BoosOS {self.version} | Drive: C:\\ | Pydroid: {pydroid_status} | {time.strftime('%H:%M:%S')} | Batt: {bat_str} ---\n")
 
     def task_monitor(self):
         if not HAS_PSUTIL:
@@ -324,7 +404,7 @@ class BoosOS:
         for turn in range(9):
             show()
             try:
-                move = int(input(f"{'X' if turn%2==0 else 'O'} move (0-8): "))
+                move = int(safe_input(f"{'X' if turn%2==0 else 'O'} move (0-8): "))
                 if board[move] == " ": 
                     board[move] = 'X' if turn%2==0 else 'O'
             except: 
@@ -338,9 +418,12 @@ class BoosOS:
         score = 0
         
         if not IS_WINDOWS:
-            fd = sys.stdin.fileno()
-            old_settings = termios.tcgetattr(fd)
-            tty.setcbreak(fd)
+            try:
+                fd = sys.stdin.fileno()
+                old_settings = termios.tcgetattr(fd)
+                tty.setcbreak(fd)
+            except Exception:
+                pass
 
         try:
             while True:
@@ -382,7 +465,10 @@ class BoosOS:
                     snake.pop()
         finally:
             if not IS_WINDOWS:
-                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                try:
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                except Exception:
+                    pass
 
         if self.current_user: 
             self.save_data("snake_high_score", score)
@@ -390,7 +476,7 @@ class BoosOS:
     def advanced_calc(self):
         print("Calc: Supports +, -, *, /, **, sqrt(x), abs(x). Type 'exit' to quit.")
         while True:
-            cmd = input("calc> ")
+            cmd = safe_input("calc> ")
             if cmd == 'exit': break
             try: 
                 print(eval(cmd, {"__builtins__": None}, {"sqrt": math.sqrt, "pow": pow, "abs": abs}))
@@ -399,11 +485,13 @@ class BoosOS:
 
     # --- KERNEL CORE LOOP ---
     def run(self):
+        if IS_PYDROID:
+            print("[System Info: Pydroid 3 environment optimized & ready]")
         print(f"\n--- BoosOS v{self.version} [Drive C:\\ Mapped] ---\n")
         while self.running:
             prompt = f"{self.current_user or 'guest'}@boos:C:\\>$ "
             try:
-                ui = input(prompt).lower().split()
+                ui = safe_input(prompt).lower().split()
                 if not ui: continue
                 c = ui[0]
                 
@@ -425,7 +513,8 @@ class BoosOS:
                     "register": self.register,
                     "whoami": lambda: print(f"{self.current_user or 'guest'} (Drive: C:\\)"),
                     "pkg": lambda: self.pkg_manager(ui[1:]),
-                    "run": lambda: self.run_app(ui[1]) if len(ui) > 1 else print("Usage: run <app_name>")
+                    "run": lambda: self.run_app(ui[1]) if len(ui) > 1 else print("Usage: run <app_name>"),
+                    "notes": lambda: self.boos_notes.run()
                 }
                 
                 if c in actions: 
