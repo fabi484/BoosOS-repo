@@ -1,4 +1,6 @@
-# BoosOS v3.2.6.1 - Complete System Script with BoosNotes & Pydroid 3 Fixes
+# BoosOS v3.2.6.2 - Patch Update (boosKernel 2.6)
+# Including: boosfetch fix, mobile rendering improvements, native BoosNotes & Pydroid 3 compatibility
+
 import time, os, socket, difflib, urllib.parse, urllib.request, webbrowser, random, sys, math, datetime, json
 
 # Optional hardware monitoring library
@@ -93,7 +95,7 @@ class BoosNotes:
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.2.6.1"
+        self.version = "3.2.6.2"
         self.running = True
         self.save_dir = "user_saves"
         
@@ -115,7 +117,7 @@ class BoosOS:
 
         self.commands = [
             "sysinfo", "ping", "calc", "clear", "exit", "help", "snake", 
-            "tictactoe", "top", "login", "register", "whoami", "pkg", "run", "notes"
+            "tictactoe", "top", "login", "register", "whoami", "pkg", "run", "notes", "boosfetch"
         ]
 
     def clear_screen(self):
@@ -176,7 +178,7 @@ class BoosOS:
             return
 
         users[u] = p
-        with open(self.users_file, "w") as f:
+        with open(users_file_path := self.users_file, "w") as f:
             json.dump(users, f, indent=4)
 
         self.set_active_user(u)
@@ -211,6 +213,47 @@ class BoosOS:
             return {}
         path = os.path.join(self.user_dir, "data.json")
         return json.load(open(path, "r")) if os.path.exists(path) else {}
+
+    # --- SYSTEM UTILITY: BOOSFETCH (FIXED & MOBILE-OPTIMIZED) ---
+    def boos_fetch(self):
+        """Displays system information card with adaptive rendering for mobile/Pydroid screens."""
+        if HAS_PSUTIL:
+            try:
+                bat = psutil.sensors_battery()
+                bat_str = f"{bat.percent}%" if bat else "N/A"
+            except (PermissionError, AttributeError):
+                bat_str = "N/A"
+        else:
+            bat_str = "N/A"
+
+        user_display = self.current_user or "guest"
+        env_type = "Pydroid 3 / Mobile" if IS_PYDROID else "Standard Terminal"
+
+        # Compact ASCII layout designed to prevent wrapping/rendering glitches on small mobile screens
+        logo = [
+            "  ____                  ___  ____  ",
+            " | __ )  ___   ___  ___/ _ \\/ ___| ",
+            " |  _ \\ / _ \\ / _ \\/ __| | | \\___ \\ ",
+            " | |_) | (_) | (_) \\__ \\ |_| |___) |",
+            " |____/ \\___/ \\___/|___/\\___/|____/ "
+        ]
+
+        info_lines = [
+            f"OS: BoosOS v{self.version} (boosKernel 2.6)",
+            f"User: {user_display}@boos",
+            f"Environment: {env_type}",
+            f"Drive: C:\\ ({self.save_dir}/{user_display})",
+            f"Time: {time.strftime('%H:%M:%S')}",
+            f"Battery: {bat_str}"
+        ]
+
+        print("\n" + "=" * 36)
+        max_rows = max(len(logo), len(info_lines))
+        for i in range(max_rows):
+            left = logo[i] if i < len(logo) else " " * 32
+            right = info_lines[i] if i < len(info_lines) else ""
+            print(f"{left}  {right}")
+        print("=" * 36 + "\n")
 
     # --- ONLINE PACKAGE MANAGER (`pkg`) ---
     def update_single_app(self, app_name):
@@ -383,7 +426,7 @@ class BoosOS:
             bat_str = "N/A (psutil not installed)"
             
         pydroid_status = "Yes" if IS_PYDROID else "No"
-        print(f"\n--- BoosOS {self.version} | Drive: C:\\ | Pydroid: {pydroid_status} | {time.strftime('%H:%M:%S')} | Batt: {bat_str} ---\n")
+        print(f"\n--- BoosOS {self.version} (boosKernel 2.6) | Drive: C:\\ | Pydroid: {pydroid_status} | {time.strftime('%H:%M:%S')} | Batt: {bat_str} ---\n")
 
     def task_monitor(self):
         if not HAS_PSUTIL:
@@ -487,7 +530,7 @@ class BoosOS:
     def run(self):
         if IS_PYDROID:
             print("[System Info: Pydroid 3 environment optimized & ready]")
-        print(f"\n--- BoosOS v{self.version} [Drive C:\\ Mapped] ---\n")
+        print(f"\n--- BoosOS v{self.version} (boosKernel 2.6) [Drive C:\\ Mapped] ---\n")
         while self.running:
             prompt = f"{self.current_user or 'guest'}@boos:C:\\>$ "
             try:
@@ -514,7 +557,8 @@ class BoosOS:
                     "whoami": lambda: print(f"{self.current_user or 'guest'} (Drive: C:\\)"),
                     "pkg": lambda: self.pkg_manager(ui[1:]),
                     "run": lambda: self.run_app(ui[1]) if len(ui) > 1 else print("Usage: run <app_name>"),
-                    "notes": lambda: self.boos_notes.run()
+                    "notes": lambda: self.boos_notes.run(),
+                    "boosfetch": self.boos_fetch
                 }
                 
                 if c in actions: 
