@@ -1,5 +1,5 @@
-# BoosOS v3.2.6.2 - Patch Update (boosKernel 2.6)
-# Including: boosfetch fix, mobile rendering improvements, native BoosNotes & Pydroid 3 compatibility
+# BoosOS v3.2.7 - System Update (boosKernel 2.6)
+# Including: Enhanced kernel stability, boosfetch, mobile rendering, and native apps
 
 import time, os, socket, difflib, urllib.parse, urllib.request, webbrowser, random, sys, math, datetime, json
 
@@ -95,7 +95,7 @@ class BoosNotes:
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.2.6.2"
+        self.version = "3.2.7"
         self.running = True
         self.save_dir = "user_saves"
         
@@ -178,7 +178,7 @@ class BoosOS:
             return
 
         users[u] = p
-        with open(users_file_path := self.users_file, "w") as f:
+        with open(self.users_file, "w") as f:
             json.dump(users, f, indent=4)
 
         self.set_active_user(u)
@@ -214,7 +214,7 @@ class BoosOS:
         path = os.path.join(self.user_dir, "data.json")
         return json.load(open(path, "r")) if os.path.exists(path) else {}
 
-    # --- SYSTEM UTILITY: BOOSFETCH (FIXED & MOBILE-OPTIMIZED) ---
+    # --- SYSTEM UTILITY: BOOSFETCH ---
     def boos_fetch(self):
         """Displays system information card with adaptive rendering for mobile/Pydroid screens."""
         if HAS_PSUTIL:
@@ -229,7 +229,6 @@ class BoosOS:
         user_display = self.current_user or "guest"
         env_type = "Pydroid 3 / Mobile" if IS_PYDROID else "Standard Terminal"
 
-        # Compact ASCII layout designed to prevent wrapping/rendering glitches on small mobile screens
         logo = [
             "  ____                  ___  ____  ",
             " | __ )  ___   ___  ___/ _ \\/ ___| ",
