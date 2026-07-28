@@ -1,5 +1,6 @@
 # BoosOS v3.2.7 - System Update (boosKernel 2.6)
-# Including: Enhanced kernel stability, boosfetch, mobile rendering, and native apps
+# Built directly on v3.2.6.2 base
+# Includes: boosfetch fix, mobile/Pydroid 3 support, BoosNotes, and core optimizations
 
 import time, os, socket, difflib, urllib.parse, urllib.request, webbrowser, random, sys, math, datetime, json
 
@@ -214,7 +215,7 @@ class BoosOS:
         path = os.path.join(self.user_dir, "data.json")
         return json.load(open(path, "r")) if os.path.exists(path) else {}
 
-    # --- SYSTEM UTILITY: BOOSFETCH ---
+    # --- SYSTEM UTILITY: BOOSFETCH (FIXED & MOBILE-OPTIMIZED) ---
     def boos_fetch(self):
         """Displays system information card with adaptive rendering for mobile/Pydroid screens."""
         if HAS_PSUTIL:
@@ -229,6 +230,7 @@ class BoosOS:
         user_display = self.current_user or "guest"
         env_type = "Pydroid 3 / Mobile" if IS_PYDROID else "Standard Terminal"
 
+        # Compact ASCII layout designed to prevent wrapping/rendering glitches on small mobile screens
         logo = [
             "  ____                  ___  ____  ",
             " | __ )  ___   ___  ___/ _ \\/ ___| ",
