@@ -16,8 +16,8 @@ DESCRIPTION:
 
 SYSTEM ARCHITECTURE MODULES:
     1. Core Constants & Terminal Color Definitions
-    2. Localization & Multi-Language Dictionary System
-    3. Hardware, Platform, and Runtime Detection Engine
+    2. Hardware, Platform, and Runtime Detection Engine
+    3. System Configuration & Global State Manager
     4. Theme Manager & Dynamic Color Palette Renderer
     5. Logger Subsystem & System Trace Utilities
     6. System Metrics, Benchmark, & Hardware Diagnostics
@@ -104,7 +104,47 @@ class ANSIColors:
 
 
 # ==============================================================================
-# SECTION 2: SYSTEM CONFIGURATION & GLOBAL STATE MANAGER
+# SECTION 2: ENVIRONMENT & HARDWARE DETECTION SUBSYSTEM (DEFINED FIRST)
+# ==============================================================================
+
+def is_android_device():
+    """Detects if running on Android/Termux/Pydroid."""
+    android_indicators = [
+        'ANDROID_ROOT',
+        'ANDROID_DATA',
+        'TERMUX_VERSION',
+        'PREFIX'
+    ]
+    for env_var in android_indicators:
+        if env_var in os.environ:
+            return True
+    if hasattr(sys, 'getandroidapilevel'):
+        return True
+    return False
+
+def check_gui_capability():
+    """Verifies whether Tkinter and X11/Wayland or native display are online."""
+    if is_android_device() and 'DISPLAY' not in os.environ:
+        return False
+    try:
+        import tkinter as tk
+        root = tk.Tk()
+        root.destroy()
+        return True
+    except Exception:
+        return False
+
+SYSTEM_ENVIRONMENT = {
+    "is_mobile": is_android_device(),
+    "has_gui": check_gui_capability(),
+    "platform": platform.system(),
+    "architecture": platform.machine(),
+    "python_version": platform.python_version()
+}
+
+
+# ==============================================================================
+# SECTION 3: SYSTEM CONFIGURATION & GLOBAL STATE MANAGER
 # ==============================================================================
 
 class SystemConfig:
@@ -147,46 +187,6 @@ class GlobalState:
             self.system_logs.pop(0)
 
 SYSTEM_STATE = GlobalState()
-
-
-# ==============================================================================
-# SECTION 3: ENVIRONMENT & HARDWARE DETECTION SUBSYSTEM
-# ==============================================================================
-
-def is_android_device():
-    """Detects if running on Android/Termux/Pydroid."""
-    android_indicators = [
-        'ANDROID_ROOT',
-        'ANDROID_DATA',
-        'TERMUX_VERSION',
-        'PREFIX'
-    ]
-    for env_var in android_indicators:
-        if env_var in os.environ:
-            return True
-    if hasattr(sys, 'getandroidapilevel'):
-        return True
-    return False
-
-def check_gui_capability():
-    """Verifies whether Tkinter and X11/Wayland or native display are online."""
-    if is_android_device() and 'DISPLAY' not in os.environ:
-        return False
-    try:
-        import tkinter as tk
-        root = tk.Tk()
-        root.destroy()
-        return True
-    except Exception:
-        return False
-
-SYSTEM_ENVIRONMENT = {
-    "is_mobile": is_android_device(),
-    "has_gui": check_gui_capability(),
-    "platform": platform.system(),
-    "architecture": platform.machine(),
-    "python_version": platform.python_version()
-}
 
 
 # ==============================================================================
@@ -359,12 +359,12 @@ def generate_pixel_banner():
     py = ANSIColors.PIXEL_YELLOW
     pg = ANSIColors.PIXEL_GREEN
     rst = ANSIColors.RESET
-    return f"""
- {pb}   G G G G   {pr} o o o o   {py} o o o o   {pb} G G G G   {pg} l {pr} e e e e {rst}
- {pb}  G          {pr}o       o  {py}o       o  {pb}G          {pg} l {pr} e       {rst}
- {pb}  G    G G G {pr}o       o  {py}o       o  {pb}G    G G G {pg} l {pr} e e e e {rst}
- {pb}  G       G  {pr}o       o  {py}o       o  {pb}G       G  {pg} l {pr} e       {rst}
- {pb}   G G G G   {pr} o o o o   {py} o o o o   {pb}  G G G G   {pg} l {pr} e e e e {rst}
+    return r"""
+ """ + pb + r"   G G G G   " + pr + r" o o o o   " + py + r" o o o o   " + pb + r" G G G G   " + pg + r" l " + pr + r" e e e e " + rst + r"""
+ """ + pb + r"  G          " + pr + r"o       o  " + py + r"o       o  " + pb + r"G          " + pg + r" l " + pr + r" e       " + rst + r"""
+ """ + pb + r"  G    G G G " + pr + r"o       o  " + py + r"o       o  " + pb + r"G    G G G " + pg + r" l " + pr + r" e e e e " + rst + r"""
+ """ + pb + r"  G       G  " + pr + r"o       o  " + py + r"o       o  " + pb + r"G       G  " + pg + r" l " + pr + r" e       " + rst + r"""
+ """ + pb + r"   G G G G   " + pr + r" o o o o   " + py + r" o o o o   " + pb + r"  G G G G   " + pg + r" l " + pr + r" e e e e " + rst + r"""
     """
 
 def generate_desktop_banner():
@@ -417,7 +417,6 @@ def run_cpu_benchmark():
     print(f"{theme['accent']}Running BoosOS CPU Performance Benchmark...{ANSIColors.RESET}")
     start = time.time()
     
-    # Prime number calculation benchmark loop
     primes_found = 0
     for num in range(2, 25000):
         is_prime = True
@@ -587,21 +586,18 @@ def launch_gui_subsystem():
     root.geometry("960x640")
     root.configure(bg=theme["gui_bg"])
 
-    # Taskbar Frame
     taskbar = tk.Frame(root, bg="#000000", height=45)
     taskbar.pack(side="bottom", fill="x")
 
     lbl_status = tk.Label(taskbar, text=f"BoosOS v{SystemConfig.VERSION} | {SYSTEM_ENVIRONMENT['platform']}", bg="#000000", fg=theme["gui_accent"], font=("Consolas", 10, "bold"))
     lbl_status.pack(side="left", padx=15)
 
-    # Main Workspace Canvas
     workspace = tk.Frame(root, bg=theme["gui_bg"])
     workspace.pack(expand=True, fill="both", padx=20, pady=20)
 
     title_label = tk.Label(workspace, text="BoosOS Desktop Subsystem", font=("Helvetica", 22, "bold"), bg=theme["gui_bg"], fg=theme["gui_fg"])
     title_label.pack(pady=20)
 
-    # Widget Panel Frame
     panel = tk.Frame(workspace, bg=theme["gui_panel"], bd=2, relief="groove")
     panel.pack(fill="both", expand=True, padx=20, pady=10)
 
