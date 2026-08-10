@@ -1,4 +1,4 @@
-# BoosOS v3.2.7
+# BoosOS v3.2.8 - Final Release
 import time
 import os
 import socket
@@ -145,7 +145,7 @@ class BoosNotes:
 
 class BoosOS:
     def __init__(self):
-        self.version = "3.2.7"
+        self.version = "3.2.8"
         self.running = True
         self.save_dir = "user_saves"
         self.repo_url = "https://raw.githubusercontent.com/fabi484/BoosOS-repo/main"
@@ -383,7 +383,6 @@ class BoosOS:
                 self.clear_screen()
                 print(f"--- BoosSnake | Score: {score} ---")
                 
-                # Draw grid
                 for r in range(height):
                     line = ""
                     for c in range(width):
@@ -404,12 +403,10 @@ class BoosOS:
                 if key == 'q':
                     break
                 if key in ['w', 'a', 's', 'd']:
-                    # Prevent instant 180 turn
                     opposite = {'w': 's', 's': 'w', 'a': 'd', 'd': 'a'}
                     if key != opposite.get(direction):
                         direction = key
 
-                # Move Snake
                 head_r, head_c = snake[0]
                 if direction == 'w':
                     head_r -= 1
@@ -422,7 +419,6 @@ class BoosOS:
 
                 new_head = (head_r, head_c)
 
-                # Check Collision
                 if (head_r <= 0 or head_r >= height - 1 or 
                     head_c <= 0 or head_c >= width - 1 or 
                     new_head in snake):
@@ -464,7 +460,8 @@ class BoosOS:
                 print("[PKG Error] Specify app name to install.")
                 return
             app_name = args[1].lower()
-            url = f"{self.repo_url}/{app_name}.py"
+            # Direct route to /apps/ subfolder
+            url = f"{self.repo_url}/apps/{app_name}.py"
             print(f"[PKG] Fetching {url}...")
             try:
                 req = urllib.request.Request(url, headers={'Cache-Control': 'no-cache'})
